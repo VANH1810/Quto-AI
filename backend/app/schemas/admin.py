@@ -37,6 +37,29 @@ class AdminPublic(AdminBase):
     email: str
 
 
+class LoginRequest(BaseModel):
+    """Đăng nhập gọn: chỉ email + mật khẩu."""
+
+    email: str = Field(..., examples=["canbo.muong_pon@dienbien.gov.vn"])
+    password: str = Field(..., examples=["123456"])
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class AdminCommune(BaseModel):
+    """Phạm vi địa bàn trả về cho admin đang đăng nhập."""
+
+    id: str
+    code: str
+    name: str
+    districtId: str
+    districtName: str
+
+
+class DataEnvelope(BaseModel):
+    """Envelope cho các API console admin mới, tách với API legacy trả list thẳng."""
+
+    data: object

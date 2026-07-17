@@ -1,4 +1,8 @@
-"""JWT cho admin (HS256, PyJWT). Chỉ dùng cho DB2 (cán bộ) — công dân không đăng nhập."""
+"""JWT cho admin (HS256, PyJWT) + bảo vệ route bằng HTTP Bearer.
+
+Dùng HTTPBearer (thay OAuth2PasswordBearer) → ô **Authorize** trên Swagger chỉ còn
+MỘT ô để dán token, gọn hơn nhiều.
+"""
 
 from __future__ import annotations
 
@@ -6,12 +10,12 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import get_settings
 
 settings = get_settings()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+bearer_scheme = HTTPBearer(description="Dán access_token lấy từ 1.1 Đăng nhập")
 
 
 def create_access_token(subject: str) -> str:
@@ -24,13 +28,14 @@ def create_access_token(subject: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def get_current_admin(token: str = Depends(oauth2_scheme)):
-    """Giải mã token → trả AdminPublic. 401 nếu sai/hết hạn."""
+def get_current_admin(cred: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    """Giải mã Bearer token → trả AdminPublic. 401 nếu sai/hết hạn."""
     from app.services.admins import admins  # tránh vòng import
 
     cred_err = HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(cred.credentials, settings.jwt_secret,
+                             algorithms=[settings.jwt_algorithm])
         email = payload.get("sub")
     except jwt.PyJWTError:
         raise cred_err

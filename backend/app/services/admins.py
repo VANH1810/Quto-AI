@@ -48,7 +48,7 @@ class AdminStore:
         self._by_email: dict[str, AdminRecord] = {}
         self._by_id: dict[str, AdminRecord] = {}
 
-    def create(self, data: AdminCreate) -> AdminRecord:
+    def create(self, data: AdminCreate, mirror: bool = True) -> AdminRecord:
         email = data.email.strip().lower()
         if email in self._by_email:
             raise ValueError("email đã được đăng ký")
@@ -66,7 +66,21 @@ class AdminStore:
         )
         self._by_email[email] = rec
         self._by_id[rec.id] = rec
-        supabase_repo.mirror(supabase_repo.push_admins, [rec])  # tự đẩy lên Supabase nếu bật
+        if mirror:  # seed hàng loạt truyền mirror=False rồi đẩy 1 lần cho nhanh
+            supabase_repo.mirror(supabase_repo.push_admins, [rec])
+        return rec
+
+    def load_raw(self, row: dict) -> AdminRecord:
+        """Nạp 1 admin từ Supabase (đã có password_hash) — KHÔNG hash lại."""
+        rec = AdminRecord(
+            id=row["id"], email=(row.get("email") or "").strip().lower(),
+            full_name=row.get("full_name", ""), age=row.get("age") or 0,
+            phone=row.get("phone", ""), role=AdminRole(row.get("role", "commune")),
+            communes=row.get("communes") or [], password_hash=row["password_hash"],
+            ethnicity=row.get("ethnicity"), religion=row.get("religion"),
+        )
+        self._by_email[rec.email] = rec
+        self._by_id[rec.id] = rec
         return rec
 
     def get_by_email(self, email: str) -> AdminRecord | None:

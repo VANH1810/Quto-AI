@@ -1,0 +1,29 @@
+[project]
+name = "quto-risk-engine"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "jsonschema",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+  "hypothesis",
+  "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["backend"]
+markers = [
+  "slow: default fuzz test uses 1,000 cases; RUN_RISK_ENGINE_SLOW=1 runs 100,000",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["backend/risk_engine"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

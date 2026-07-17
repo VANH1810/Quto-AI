@@ -1,0 +1,323 @@
+version: qd18-v1.0.3
+description: "Risk-engine rule tables for Dien Bien Region-1 early warning."
+
+parameters:
+  api_saturation_pivot_mm: 60.0 # OPEN-5: calibrate against T1/T2 before pilot.
+  rain_day_threshold_mm: 16.0 # OPEN-1: confirm prior-rain-day definition with KTTV Dien Bien.
+  eff_rain_blend_cap_mm: 1000.0
+  cooldown_hours: 6
+  lowering_ticks: 3
+  lowering_rain_guard_mm_h: 5.0
+  lowering_jitter_margin_pct: 10.0
+  observation_fresh_hours: 2
+  observation_missing_hours: 6
+  forecast_stale_hours: 9
+  frost_temp_c: 4.0
+  frost_cloud_cover_pct: 30.0
+  frost_wind_ms: 2.0
+  fog_rh_pct: 97.0
+  fog_wind_ms: 3.0
+  fog_dewpoint_spread_c: 1.5
+  fog_visibility_m: 1000.0
+
+validation:
+  physical_ranges:
+    rain_1h_mm: {gte: 0, lte: 250}
+    rain_3h_mm: {gte: 0, lte: 500}
+    rain_6h_mm: {gte: 0, lte: 750}
+    rain_24h_mm: {gte: 0, lte: 1000}
+    precip_mm: {gte: 0, lte: 250}
+    nowcast_rain_6h_mm: {gte: 0, lte: 750}
+    temp_c: {gte: -15, lte: 50}
+    temp_min_24h_c: {gte: -15, lte: 50}
+    rh_pct: {gte: 0, lte: 100}
+    cloud_cover_pct: {gte: 0, lte: 100}
+    wind_ms: {gte: 0, lte: 75}
+    visibility_m: {gte: 0, lte: 100000}
+    dewpoint_c: {gte: -30, lte: 50}
+    api_mm: {gte: 0, lte: 1000}
+
+rule_tables:
+  lu_quet_sat_lo:
+    - rule_id: qd18.art46.kv1.r1a
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 1, khu vuc 1"
+      level: 1
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gte: 100, lte: 200}
+        rain_days_prior: {gte: 1, lte: 2}
+        susceptibility: {in: [low, medium]}
+    - rule_id: qd18.art46.kv1.r1b
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 2, khu vuc 1"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gte: 100, lte: 200}
+        rain_days_prior: {gte: 1, lte: 2}
+        susceptibility: {in: [high]}
+    - rule_id: qd18.art46.kv1.r1c
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 3, khu vuc 1"
+      level: 3
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gte: 100, lte: 200}
+        rain_days_prior: {gte: 1, lte: 2}
+        susceptibility: {in: [very_high]}
+    - rule_id: qd18.art46.kv1.r2a
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 1, khu vuc 1"
+      level: 1
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gt: 200, lte: 400}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [low]}
+    - rule_id: qd18.art46.kv1.r2b
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 2, khu vuc 1"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gt: 200, lte: 400}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [medium]}
+    - rule_id: qd18.art46.kv1.r2c
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 3, khu vuc 1"
+      level: 3
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gt: 200, lte: 400}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [high, very_high]}
+    - rule_id: qd18.art46.kv1.r3a
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 2, khu vuc 1"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gt: 400}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [low, medium]}
+    - rule_id: qd18.art46.kv1.r3b
+      legal_ref: "Dieu 46, QD 18/2021/QD-TTg - rui ro cap 3, khu vuc 1"
+      level: 3
+      output_class: public_warning
+      extrapolated: false
+      bounds:
+        eff_rain_24h: {gt: 400}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [high, very_high]}
+    - rule_id: qd18.art46.kv1.ex0a
+      legal_ref: "Dieu 46 gap-fill, P3/G5 - 100-200 mm with >2 prior rain days"
+      level: 1
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gte: 100, lte: 200}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [low, medium]}
+    - rule_id: qd18.art46.kv1.ex0b
+      legal_ref: "Dieu 46 gap-fill, P3/G5 - 100-200 mm with >2 prior rain days"
+      level: 2
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gte: 100, lte: 200}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [high]}
+    - rule_id: qd18.art46.kv1.ex0c
+      legal_ref: "Dieu 46 gap-fill, P3/G5 - 100-200 mm with >2 prior rain days"
+      level: 3
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gte: 100, lte: 200}
+        rain_days_prior: {gt: 2}
+        susceptibility: {in: [very_high]}
+    - rule_id: qd18.art46.kv1.ex1a
+      legal_ref: "Dieu 46 gap-fill, P3 - >200-400 mm with 1-2 prior rain days"
+      level: 1
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gt: 200, lte: 400}
+        rain_days_prior: {gte: 1, lte: 2}
+        susceptibility: {in: [low]}
+    - rule_id: qd18.art46.kv1.ex1b
+      legal_ref: "Dieu 46 gap-fill, P3 - >200-400 mm with 1-2 prior rain days"
+      level: 2
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gt: 200, lte: 400}
+        rain_days_prior: {gte: 1, lte: 2}
+        susceptibility: {in: [medium]}
+    - rule_id: qd18.art46.kv1.ex1c
+      legal_ref: "Dieu 46 gap-fill, P3 - >200-400 mm with 1-2 prior rain days"
+      level: 3
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gt: 200, lte: 400}
+        rain_days_prior: {gte: 1, lte: 2}
+        susceptibility: {in: [high, very_high]}
+    - rule_id: qd18.art46.kv1.ex2a
+      legal_ref: "Dieu 46 gap-fill, P3 - >400 mm with <=2 prior rain days"
+      level: 1
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gt: 400}
+        rain_days_prior: {lte: 2}
+        susceptibility: {in: [low]}
+    - rule_id: qd18.art46.kv1.ex2b
+      legal_ref: "Dieu 46 gap-fill, P3 - >400 mm with <=2 prior rain days"
+      level: 2
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gt: 400}
+        rain_days_prior: {lte: 2}
+        susceptibility: {in: [medium]}
+    - rule_id: qd18.art46.kv1.ex2c
+      legal_ref: "Dieu 46 gap-fill, P3 - >400 mm with <=2 prior rain days"
+      level: 3
+      output_class: public_warning
+      extrapolated: true
+      bounds:
+        eff_rain_24h: {gt: 400}
+        rain_days_prior: {lte: 2}
+        susceptibility: {in: [high, very_high]}
+    - rule_id: qd18.art46.kv1.prewarning
+      legal_ref: "Dieu 46 vigilance pre-warning below public legal threshold"
+      level: 1
+      output_class: official_advisory
+      extrapolated: true
+      flags: [below_legal_threshold]
+      bounds:
+        eff_rain_24h: {gte: 80, lt: 100}
+        nowcast_confidence: {gte: 0.6}
+        saturated: {eq: true}
+        susceptibility: {in: [high, very_high]}
+
+  mua_lon:
+    - rule_id: qd18.art44.local.r1a
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 1, 100-200 mm/24h"
+      level: 1
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_or_eff_rain_24h: {gte: 100, lte: 200}
+    - rule_id: qd18.art44.local.r1b
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 1, 50-100 mm/12h"
+      level: 1
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_rain_12h: {gte: 50, lte: 100}
+    - rule_id: qd18.art44.local.r2a
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 2, >200-400 mm/24h"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_or_eff_rain_24h: {gt: 200, lte: 400}
+    - rule_id: qd18.art44.local.r2b
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 2, 100-200 mm/24h sustained >2 days"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_or_eff_rain_24h: {gte: 100, lte: 200}
+        forecast_heavy_rain_days: {gt: 2}
+    - rule_id: qd18.art44.local.r3a
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 3, >400 mm/24h"
+      level: 3
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_or_eff_rain_24h: {gt: 400}
+    - rule_id: qd18.art44.local.r3b
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 3, >200-400 mm/24h sustained >2 days"
+      level: 3
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_or_eff_rain_24h: {gt: 200, lte: 400}
+        forecast_heavy_rain_days: {gt: 2}
+    - rule_id: qd18.art44.local.r4
+      legal_ref: "Dieu 44, QD 18/2021/QD-TTg - mua lon local cap 4, severe amount sustained >4 days"
+      level: 4
+      output_class: public_warning
+      extrapolated: false
+      flags: [mua_lon_local]
+      bounds:
+        fcst_or_eff_rain_24h: {gt: 200}
+        forecast_heavy_rain_days: {gt: 4}
+
+  ret_hai:
+    # OPEN-2: replace these capped placeholder rows after the exact Dieu 53 matrix is verified.
+    - rule_id: qd18.art53.pending.r1a
+      legal_ref: "Dieu 53 pending verification - ret hai 8-13 C, 3-5 days"
+      level: 1
+      output_class: public_warning
+      extrapolated: false
+      flags: [pending_legal_verification]
+      bounds:
+        cold_episode_min_mean_c: {gt: 8, lt: 13}
+        cold_episode_duration_days: {gte: 3, lte: 5}
+    - rule_id: qd18.art53.pending.r2a
+      legal_ref: "Dieu 53 pending verification - ret hai <=8 C or >5 days"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      flags: [pending_legal_verification]
+      bounds:
+        cold_episode_min_mean_c: {lte: 8}
+        cold_episode_duration_days: {gte: 3}
+    - rule_id: qd18.art53.pending.r2b
+      legal_ref: "Dieu 53 pending verification - ret hai 8-13 C, >5 days"
+      level: 2
+      output_class: public_warning
+      extrapolated: false
+      flags: [pending_legal_verification]
+      bounds:
+        cold_episode_min_mean_c: {gt: 8, lt: 13}
+        cold_episode_duration_days: {gt: 5}
+
+  suong_muoi:
+    - rule_id: qd18.art53.frost.advisory
+      legal_ref: "Dieu 53 / D4 - suong muoi advisory attached to ret hai event"
+      level: 1
+      output_class: official_advisory
+      extrapolated: false
+      flags: [suong_muoi_advisory, pending_legal_verification]
+      bounds:
+        frost_risk: {eq: true}
+
+  suong_mu:
+    - rule_id: qd18.art5.def20.fog.observed
+      legal_ref: "Dieu 5 definition 20 - suong mu, visibility < 1 km"
+      level: 1
+      output_class: official_advisory
+      extrapolated: false
+      bounds:
+        visibility_m: {lt: 1000}
+    - rule_id: qd18.art5.def20.fog.proxy
+      legal_ref: "Dieu 5 definition 20 / D5 - fog proxy without visibility sensor"
+      level: 1
+      output_class: official_advisory
+      extrapolated: false
+      flags: [proxy_visibility]
+      bounds:
+        fog_likely: {eq: true}

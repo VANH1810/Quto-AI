@@ -12,10 +12,14 @@ supabase-py là SYNC; gọi trong route async vẫn ổn cho quy mô demo.
 
 from __future__ import annotations
 
+import concurrent.futures
 from functools import lru_cache
 from typing import Any
 
 from app.config import get_settings
+
+# Thread pool để đẩy dữ liệu lên Supabase ở chế độ nền (không chặn request).
+_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="supa-mirror")
 
 
 @lru_cache
@@ -32,16 +36,13 @@ def enabled() -> bool:
     return s.db_backend.lower() == "supabase" and bool(s.supabase_url and s.supabase_key)
 
 
-def _rows(models: list[Any]) -> list[dict]:
-    """Pydantic → dict JSON-safe (enum → value)."""
-    return [m.model_dump(mode="json") for m in models]
-
-
-def _upsert(table: str, models: list[Any], on_conflict: str) -> int:
+def _upsert(table: str, models: list[Any], on_conflict: str,
+            exclude: set[str] | None = None) -> int:
     client = _client()
     if client is None or not models:
         return 0
-    client.table(table).upsert(_rows(models), on_conflict=on_conflict).execute()
+    rows = [m.model_dump(mode="json", exclude=exclude) for m in models]
+    client.table(table).upsert(rows, on_conflict=on_conflict).execute()
     return len(models)
 
 
@@ -55,11 +56,20 @@ def push_citizens(citizens: list[Any]) -> int:
 
 
 def push_shelters(shelters: list[Any]) -> int:
-    return _upsert("shelters", shelters, on_conflict="id")
+    # distance_km là giá trị tính lúc truy vấn, KHÔNG phải cột trong DB.
+    return _upsert("shelters", shelters, on_conflict="id", exclude={"distance_km"})
 
 
 def push_notifications(notifs: list[Any]) -> int:
     return _upsert("notifications", notifs, on_conflict="id")
+
+
+def push_rescue_requests(reqs: list[Any]) -> int:
+    return _upsert("rescue_requests", reqs, on_conflict="id")
+
+
+def push_rescue_teams(teams: list[Any]) -> int:
+    return _upsert("rescue_teams", teams, on_conflict="id")
 
 
 def push_admins(records: list[Any]) -> int:
@@ -77,22 +87,44 @@ def push_admins(records: list[Any]) -> int:
     return len(records)
 
 
-def mirror(push_fn, items) -> None:
-    """Best-effort: đẩy lên Supabase khi đang bật; nuốt lỗi để KHÔNG chặn request."""
-    if not enabled() or not items:
-        return
+def _safe_push(push_fn, items) -> None:
     try:
         push_fn(items)
     except Exception:  # noqa: BLE001 — mất mạng/thiếu bảng không được làm hỏng luồng chính
         pass
 
 
+def mirror(push_fn, items) -> None:
+    """Đẩy lên Supabase CHẠY NỀN (fire-and-forget) — request trả về ngay, không chờ mạng.
+
+    Nhờ vậy API SOS/cảnh báo/tin nhắn phản hồi nhanh; dữ liệu lên Supabase ngay sau đó,
+    FE (subscribe Supabase Realtime) nhận cập nhật gần như tức thì.
+    """
+    if not enabled() or not items:
+        return
+    _EXECUTOR.submit(_safe_push, push_fn, list(items))
+
+
 # ---- FETCH (kéo về) ----
+def fetch_admins() -> list[dict]:
+    client = _client()
+    if client is None:
+        return []
+    return client.table("admins").select("*").execute().data or []
+
+
 def fetch_citizens() -> list[dict]:
     client = _client()
     if client is None:
         return []
     return client.table("citizens").select("*").execute().data or []
+
+
+def fetch_rescue_requests() -> list[dict]:
+    client = _client()
+    if client is None:
+        return []
+    return client.table("rescue_requests").select("*").execute().data or []
 
 
 def fetch_shelters() -> list[dict]:

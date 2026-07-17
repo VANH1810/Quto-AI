@@ -12,5 +12,8 @@ router = APIRouter(prefix="/api/v1/admins", tags=["4 · DB2 · Admin/Cán bộ"]
 
 @router.get("", response_model=list[AdminPublic], summary="4.1 · Danh sách cán bộ")
 def list_admins(commune_code: str | None = None) -> list[AdminPublic]:
+    """**Input**: query tuỳ chọn `commune_code` (lọc cán bộ phụ trách xã đó); cần token.
+    **Output**: mảng `AdminPublic` (`id, email, full_name, age, phone, ethnicity, religion,
+    role, communes[]`) — không có mật khẩu."""
     recs = admins.for_commune(commune_code) if commune_code else admins.all()
     return [admins.to_public(r) for r in recs]

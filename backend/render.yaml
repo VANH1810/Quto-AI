@@ -1,0 +1,23 @@
+# Render Blueprint — deploy backend BẢN TIN AN TOÀN.
+# Nếu đã tạo service thủ công: chỉ cần đổi Start Command trong dashboard thành startCommand bên dưới.
+services:
+  - type: web
+    name: dienbien-ews-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DB_BACKEND
+        value: supabase
+      - key: WEATHER_PROVIDER
+        value: openmeteo
+      - key: LLM_PROVIDER
+        value: mock
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false   # nhập trong dashboard (Environment)
+      - key: SUPABASE_KEY
+        sync: false   # nhập trong dashboard — service_role, KHÔNG commit
