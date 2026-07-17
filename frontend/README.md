@@ -13,6 +13,9 @@ npm run dev
 ```
 
 Mở [http://localhost:3000](http://localhost:3000) cho bản đồ công dân, hoặc [http://localhost:3000/admin](http://localhost:3000/admin) cho bảng điều hành nội bộ. Cả hai route chạy trong cùng một ứng dụng Next.js và cùng cổng `3000`.
+Cache development được lưu trong `.next-dev`, tách biệt với build production
+trong `.next` để tránh xung đột Webpack chunk khi chuyển giữa `dev`, `build` và
+`start`.
 
 Kiểm tra chất lượng trước khi bàn giao:
 
@@ -30,8 +33,8 @@ Mặc định `NEXT_PUBLIC_DATA_SOURCE=mock`. Dữ liệu nằm tại:
 
 - `public/data/dien-bien-province.geojson`: polygon giới hạn tỉnh Điện Biên.
 - `public/data/dien-bien-communes.geojson`: 45 xã/phường mới có hiệu lực từ 01/07/2025. Mã xã dùng danh mục tại Quyết định 19/2025/QĐ-TTg; hình học là snapshot OpenStreetMap và cần được cơ quan chuyên môn thẩm định trước khi dùng cho nghiệp vụ chính thức.
-- `data/mockAlerts.ts`: cảnh báo và cấp nguy hiểm 1–5.
-- `data/mockShelters.ts`: điểm trú ẩn.
+- `data/mockAlerts.ts`: cảnh báo và cấp nguy hiểm 1-5.
+- `data/shelters.ts`: điểm trú ẩn và metadata nguồn nội bộ.
 
 Làm mới snapshot ranh giới từ các OSM relation đã đối chiếu:
 
@@ -79,7 +82,7 @@ frontend/
 
 ## Lưu ý prototype
 
-- Bản đồ nền dùng OpenStreetMap nên cần kết nối mạng để tải tile; polygon GeoJSON, marker và dữ liệu cảnh báo vẫn thuộc frontend.
+- Bản đồ nền dùng OpenStreetMap nên cần kết nối mạng để tải tile; polygon GeoJSON, marker trú ẩn, vị trí người dùng và dữ liệu cảnh báo vẫn thuộc frontend.
 - Geolocation chỉ hoạt động trên `localhost` hoặc HTTPS và cần người dùng cấp quyền.
 - OpenStreetMap là nguồn mở do cộng đồng đóng góp, không phải hồ sơ địa chính pháp lý. Trước khi triển khai vận hành cảnh báo chính thức, cần đối chiếu snapshot với dữ liệu địa giới do cơ quan nhà nước có thẩm quyền cung cấp.
 - Dữ liệu cảnh báo, dân số tham khảo và điểm trú ẩn hiện vẫn là mock; thay chúng bằng dữ liệu backend đã xác minh trước khi sử dụng thực tế.
