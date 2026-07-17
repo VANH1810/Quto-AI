@@ -60,6 +60,14 @@ def push_notifications(notifs: list[Any]) -> int:
     return _upsert("notifications", notifs, on_conflict="id")
 
 
+def push_rescue_requests(reqs: list[Any]) -> int:
+    return _upsert("rescue_requests", reqs, on_conflict="id")
+
+
+def push_rescue_teams(teams: list[Any]) -> int:
+    return _upsert("rescue_teams", teams, on_conflict="id")
+
+
 def push_admins(records: list[Any]) -> int:
     """Admin là dataclass (không phải pydantic) → tự dựng row."""
     client = _client()
@@ -98,6 +106,13 @@ def fetch_citizens() -> list[dict]:
     if client is None:
         return []
     return client.table("citizens").select("*").execute().data or []
+
+
+def fetch_rescue_requests() -> list[dict]:
+    client = _client()
+    if client is None:
+        return []
+    return client.table("rescue_requests").select("*").execute().data or []
 
 
 def fetch_shelters() -> list[dict]:

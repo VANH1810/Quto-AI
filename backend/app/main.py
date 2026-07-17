@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
 from app.api.routes import (admins, alerts, auth, citizens, dev, forecast,
-                            notifications, shelters)
+                            notifications, rescue, shelters)
 from app.config import get_settings
 
 settings = get_settings()
@@ -29,6 +29,8 @@ tags_metadata = [
      "description": "Điểm sơ tán theo xã (địa chỉ + toạ độ) + tìm điểm gần nhất."},
     {"name": "8 · DB3 · Tin nhắn cá nhân",
      "description": "Cảnh báo đã gửi tới TỪNG người dân (kèm nơi trú ẩn). **Cần đăng nhập.**"},
+    {"name": "10 · Cứu hộ (SOS)",
+     "description": "Dân gửi vị trí nguy hiểm (công khai) → dashboard admin → cử đội cứu hộ gần nhất."},
     {"name": "9 · Hệ thống", "description": "Kiểm tra sống, cấu hình."},
 ]
 
@@ -59,6 +61,7 @@ app.include_router(alerts.router)
 app.include_router(dev.router)
 app.include_router(shelters.router)
 app.include_router(notifications.router)
+app.include_router(rescue.router)
 
 
 @app.on_event("startup")
@@ -75,12 +78,16 @@ def _bootstrap() -> None:
     if supabase_repo.enabled():
         try:
             from app.schemas.citizen import CitizenCreate
+            from app.services.rescue import rescue
             for row in supabase_repo.fetch_admins():
                 admins.load_raw(row)
             for row in supabase_repo.fetch_citizens():
                 row.pop("id", None); row.pop("preferred_lang", None)
                 citizens.upsert(CitizenCreate(**row), mirror=False)
-            print(f"[startup] Supabase: {len(admins.all())} cán bộ, {len(citizens.all())} công dân.")
+            for row in supabase_repo.fetch_rescue_requests():
+                rescue.load_request_raw(row)
+            print(f"[startup] Supabase: {len(admins.all())} cán bộ, {len(citizens.all())} công dân, "
+                  f"{len(rescue.list_requests())} tin SOS.")
         except Exception as e:  # noqa: BLE001
             print(f"[startup] Bỏ qua nạp Supabase: {e}")
 

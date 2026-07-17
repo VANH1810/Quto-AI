@@ -89,6 +89,11 @@ def get_commune(code: str) -> Commune | None:
     return _BY_CODE.get(code)
 
 
+def nearest_commune(lat: float, lon: float) -> Commune:
+    """Xã gần toạ độ nhất — suy xã cho tin SOS khi người gặp nạn không biết mã xã."""
+    return min(_COMMUNES, key=lambda c: haversine_km(lat, lon, c.lat, c.lon))
+
+
 def short_name(name: str) -> str:
     """'Xã Mường Pồn' -> 'Mường Pồn' (bỏ tiền tố Xã/Phường/Thị trấn)."""
     for prefix in ("Xã ", "Phường ", "Thị trấn "):
