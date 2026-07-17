@@ -9,6 +9,7 @@ Kiến trúc để lộ các tool này qua MCP sau này rất tự nhiên (mỗi
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 
 from app.config import get_settings
@@ -50,12 +51,15 @@ async def create_alert(event: HazardEvent, langs: list[Lang] | None = None) -> A
 
     # Tool: sinh bản tin (LLM chỉ diễn đạt/dịch)
     bulletins = await llm.generate_bulletins(event, langs)
-    # Tool: TTS cho loa (tiếng dân tộc)
-    for b in bulletins:
+
+    # Tool: TTS cho loa (tiếng dân tộc) — chạy SONG SONG các thứ tiếng.
+    async def _tts(b) -> None:
         try:
             b.audio_url = await tts.synthesize(b.body, Lang(b.lang))
         except Exception as e:  # noqa: BLE001
             alerts_store.log(alert.id, "tts_skip", f"{b.lang}: {e}")
+
+    await asyncio.gather(*[_tts(b) for b in bulletins])
     alert.bulletins = bulletins
     alerts_store.log(alert.id, "generate", f"Đã sinh {len(bulletins)} bản tin: "
                      + ", ".join(b.lang for b in bulletins))

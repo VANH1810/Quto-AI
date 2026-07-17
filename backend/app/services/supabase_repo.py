@@ -12,10 +12,14 @@ supabase-py là SYNC; gọi trong route async vẫn ổn cho quy mô demo.
 
 from __future__ import annotations
 
+import concurrent.futures
 from functools import lru_cache
 from typing import Any
 
 from app.config import get_settings
+
+# Thread pool để đẩy dữ liệu lên Supabase ở chế độ nền (không chặn request).
+_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="supa-mirror")
 
 
 @lru_cache
@@ -83,14 +87,22 @@ def push_admins(records: list[Any]) -> int:
     return len(records)
 
 
-def mirror(push_fn, items) -> None:
-    """Best-effort: đẩy lên Supabase khi đang bật; nuốt lỗi để KHÔNG chặn request."""
-    if not enabled() or not items:
-        return
+def _safe_push(push_fn, items) -> None:
     try:
         push_fn(items)
     except Exception:  # noqa: BLE001 — mất mạng/thiếu bảng không được làm hỏng luồng chính
         pass
+
+
+def mirror(push_fn, items) -> None:
+    """Đẩy lên Supabase CHẠY NỀN (fire-and-forget) — request trả về ngay, không chờ mạng.
+
+    Nhờ vậy API SOS/cảnh báo/tin nhắn phản hồi nhanh; dữ liệu lên Supabase ngay sau đó,
+    FE (subscribe Supabase Realtime) nhận cập nhật gần như tức thì.
+    """
+    if not enabled() or not items:
+        return
+    _EXECUTOR.submit(_safe_push, push_fn, list(items))
 
 
 # ---- FETCH (kéo về) ----
