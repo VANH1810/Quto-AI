@@ -1,16 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
-import { ChevronDown, CloudFog, CloudRain, LocateFixed, MapPinned, Search, Snowflake, Waves, Mountain } from "lucide-react";
+import { ChevronDown, LocateFixed, MapPinned } from "lucide-react";
 import type { CommuneAlert, CommuneCenter, HazardType, RiskFilter } from "@/types";
 import { HAZARD_META, RISK_META } from "@/utils/risk";
 
 const filterIcons = {
-  flash_flood: Waves,
-  landslide: Mountain,
-  heavy_rain: CloudRain,
-  frost: Snowflake,
-  fog: CloudFog,
+  flash_flood: "/figma/flash-flood.svg",
+  landslide: "/figma/landslide.svg",
+  heavy_rain: "/figma/heavy-rain.svg",
+  frost: "/figma/frost.svg",
+  fog: "/figma/fog.png",
 };
 
 interface SearchSidebarProps {
@@ -71,7 +72,7 @@ export function SearchSidebar(props: SearchSidebarProps) {
         <div className="commune-combobox">
           <span className="field-label">Vị trí tại Điện Biên</span>
           <div className={isOpen ? "search-box open" : "search-box"}>
-            <Search size={18} />
+            <Image className="figma-search-icon" src="/figma/search.svg" width={25} height={25} alt="" aria-hidden="true" />
             <input
               role="combobox"
               aria-label="Chọn xã hoặc phường"
@@ -134,7 +135,7 @@ export function SearchSidebar(props: SearchSidebarProps) {
 
         <button className="locate-button" onClick={props.onLocate} disabled={props.isLocating}>
           <LocateFixed size={18} className={props.isLocating ? "spin" : ""} />
-          {props.isLocating ? "Đang xác định vị trí..." : props.hasUserPosition ? "Đã dùng vị trí chính xác" : "Dùng vị trí hiện tại của tôi"}
+          <span>{props.isLocating ? "Đang xác định vị trí..." : props.hasUserPosition ? "Đã dùng vị trí chính xác" : "Dùng vị trí hiện tại của tôi"}</span>
         </button>
         {props.locationError && <p className="inline-error">{props.locationError} Bạn có thể chọn xã/phường ở phía trên.</p>}
       </section>
@@ -144,8 +145,7 @@ export function SearchSidebar(props: SearchSidebarProps) {
         <div className="risk-filters">
           <button className={props.filter === "all" ? "active" : ""} onClick={() => props.onFilterChange("all")}><span className="all-filter-icon">5</span>Tất cả</button>
           {(Object.keys(filterIcons) as HazardType[]).map((hazard) => {
-            const Icon = filterIcons[hazard];
-            return <button key={hazard} className={props.filter === hazard ? "active" : ""} onClick={() => props.onFilterChange(hazard)}><Icon size={17} />{HAZARD_META[hazard].label}</button>;
+            return <button key={hazard} className={props.filter === hazard ? "active" : ""} onClick={() => props.onFilterChange(hazard)}><Image src={filterIcons[hazard]} width={28} height={28} alt="" aria-hidden="true" />{HAZARD_META[hazard].label}</button>;
           })}
         </div>
       </section>

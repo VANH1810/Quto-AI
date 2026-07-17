@@ -16,7 +16,6 @@ export function MapLegend() {
         <span><MapPin size={15} /> Vị trí của bạn</span>
         <span><MapPinned size={15} /> Vị trí gần đúng</span>
       </div>
-      <small>Dữ liệu ranh giới và cảnh báo đang dùng cho mục đích minh họa.</small>
     </div>
   );
 }

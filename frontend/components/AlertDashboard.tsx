@@ -24,10 +24,22 @@ export function AlertDashboard() {
   const [filter, setFilter] = useState<RiskFilter>("all");
   const [selection, setSelection] = useState<SelectedPlace | null>(null);
   const [selectedCommuneCode, setSelectedCommuneCode] = useState<string | null>(null);
+  const hasDetailSelection = selection?.type === "commune" || selection?.type === "shelter";
+  const [isDetailColumnVisible, setIsDetailColumnVisible] = useState(hasDetailSelection);
 
   useEffect(() => {
     if (position && !selectedCommuneCode) setSelection({ type: "user", id: "current" });
   }, [position, selectedCommuneCode]);
+
+  useEffect(() => {
+    if (hasDetailSelection) {
+      setIsDetailColumnVisible(true);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setIsDetailColumnVisible(false), 300);
+    return () => window.clearTimeout(timeout);
+  }, [hasDetailSelection]);
 
   const gpsCommuneCode = useMemo(() => {
     if (!data || !position) return null;
@@ -80,6 +92,10 @@ export function AlertDashboard() {
     setFilter(nextFilter);
   }
 
+  function closeDetailPanel() {
+    setSelection(position ? { type: "user", id: "current" } : null);
+  }
+
   if (isLoading) {
     return <main className="app-shell"><AppHeader /><div className="full-loading"><span /><strong>Đang chuẩn bị bản đồ Điện Biên</strong><p>Tải ranh giới xã và dữ liệu cảnh báo...</p></div></main>;
   }
@@ -93,36 +109,36 @@ export function AlertDashboard() {
     <main className="app-shell">
       <AppHeader />
       <div className="mobile-summary"><span><AlertTriangle size={17} /> {highRiskCount} khu vực nguy cơ cao</span><button onClick={locateCurrentPosition}><LocateFixed size={17} /> Định vị</button></div>
-      <div className="dashboard-grid">
-        <SearchSidebar
-          communes={data.communeCenters}
-          alerts={data.alerts}
-          query={query}
-          filter={filter}
-          isLocating={isLocating}
-          locationError={locationError}
-          hasUserPosition={Boolean(position)}
-          selectedCommuneCode={selectedCommuneCode ?? undefined}
-          onQueryChange={(value) => {
-            setQuery(value);
-            setSelectedCommuneCode(null);
-            setSelection(position ? { type: "user", id: "current" } : null);
-          }}
-          onFilterChange={changeFilter}
-          onSelectCommune={(code) => {
-            const commune = data.communeCenters.find((item) => item.code === code);
-            if (commune) setQuery(commune.name);
-            selectCommune(code);
-          }}
-          onClearCommune={clearCommune}
-          onLocate={locateCurrentPosition}
-        />
+      <div className={`dashboard-grid${isDetailColumnVisible ? " detail-visible" : ""}`}>
         <section className="map-panel" aria-label="Bản đồ cảnh báo thời tiết Điện Biên">
+          <SearchSidebar
+            communes={data.communeCenters}
+            alerts={data.alerts}
+            query={query}
+            filter={filter}
+            isLocating={isLocating}
+            locationError={locationError}
+            hasUserPosition={Boolean(position)}
+            selectedCommuneCode={selectedCommuneCode ?? undefined}
+            onQueryChange={(value) => {
+              setQuery(value);
+              setSelectedCommuneCode(null);
+              setSelection(position ? { type: "user", id: "current" } : null);
+            }}
+            onFilterChange={changeFilter}
+            onSelectCommune={(code) => {
+              const commune = data.communeCenters.find((item) => item.code === code);
+              if (commune) setQuery(commune.name);
+              selectCommune(code);
+            }}
+            onClearCommune={clearCommune}
+            onLocate={locateCurrentPosition}
+          />
           <div className="map-summary"><span><i className="pulse-dot" /> 45 xã/phường · địa giới từ 01/07/2025</span><strong>{highRiskCount} khu vực cần chú ý ngay</strong></div>
           <MapCanvas {...data} shelters={visibleShelters} filter={filter} selection={selection} userPosition={position} routeOrigin={routeOrigin} onSelect={selectMapPlace} />
           <MapLegend />
         </section>
-        <DetailPanel selection={selection} alerts={data.alerts} communes={data.communeCenters} shelters={visibleShelters} userPosition={position} routeOrigin={routeOrigin} onSelectShelter={(id) => setSelection({ type: "shelter", id })} />
+        <DetailPanel selection={selection} alerts={data.alerts} communes={data.communeCenters} shelters={visibleShelters} userPosition={position} routeOrigin={routeOrigin} onSelectShelter={(id) => setSelection({ type: "shelter", id })} onClose={closeDetailPanel} />
       </div>
     </main>
   );
