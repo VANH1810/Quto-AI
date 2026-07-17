@@ -12,9 +12,9 @@ from pydantic import BaseModel, Field
 
 
 class NotificationStatus(str, Enum):
-    sent = "sent"           # đã gửi thành công
-    failed = "failed"       # gửi lỗi → cần gửi lại / đến nhà
-    home_visit = "home_visit"  # đã chuyển sang đến tận nhà
+    sent = "sent"              # đã gửi thành công (Zalo/SMS/loa)
+    failed = "failed"          # gửi lỗi → cần gửi lại / đến tận nhà
+    home_visit = "home_visit"  # cán bộ đã đến tận nhà báo trực tiếp (đã xử lý)
 
 
 class Notification(BaseModel):
@@ -33,3 +33,10 @@ class Notification(BaseModel):
     nearest_shelter_km: float | None = None
     detail: str = ""
     created_at: str = Field(..., description="Thời điểm gửi")
+
+
+class NotificationUpdate(BaseModel):
+    """Cập nhật 1 tin nhắn — dùng khi cán bộ đến tận nhà báo xong (status=home_visit)."""
+
+    status: NotificationStatus
+    detail: str | None = None

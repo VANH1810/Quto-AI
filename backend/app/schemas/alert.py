@@ -25,7 +25,6 @@ class DispatchStatus(str, Enum):
     ok = "ok"
     failed = "failed"
     retrying = "retrying"
-    home_visit = "home_visit"  # chuyển sang đến tận nhà báo
 
 
 class Provenance(BaseModel):
@@ -79,13 +78,3 @@ class ApproveRequest(BaseModel):
     approve: bool = True
     note: str | None = None
     edited_body_vi: str | None = Field(None, description="Người duyệt sửa lại nội dung tiếng Việt (tuỳ chọn)")
-
-
-class HomeVisitTask(BaseModel):
-    id: str
-    alert_id: str
-    commune_code: str
-    assigned_admin_id: str | None = None
-    reason: str
-    status: str = "open"  # open | done
-    created_at: str

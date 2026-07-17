@@ -96,16 +96,6 @@ create table if not exists notifications (
 create index if not exists idx_notif_alert on notifications(alert_id);
 create index if not exists idx_notif_cccd  on notifications(cccd);
 
--- 7) Task 'đến tận nhà báo' (khi gửi lỗi)
-create table if not exists home_visits (
-  id                text primary key,
-  alert_id          text references alerts(id),
-  commune_code      text,
-  assigned_admin_id text references admins(id),
-  reason            text,
-  status            text default 'open',
-  created_at        timestamptz default now()
-);
 
 -- Gợi ý bảo mật: bật RLS + policy phù hợp trước khi lên production.
 -- alter table citizens enable row level security; (rồi tạo policy theo vai trò)

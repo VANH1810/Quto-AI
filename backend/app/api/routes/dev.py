@@ -22,7 +22,11 @@ router = APIRouter(prefix="/api/v1/dev", tags=["6 · Demo — dữ liệu mẫu"
 
 @router.post("/seed", summary="6.1 · Seed admin + công dân mẫu (nhiều dân tộc)")
 def seed_people() -> dict:
-    """Tạo 1 admin đăng nhập được + vài công dân Thái/Mông/Kinh ở Mường Pồn & Tủa Chùa."""
+    """Tạo 1 admin đăng nhập được + vài công dân Thái/Mông/Kinh ở Mường Pồn & Tủa Chùa.
+
+    **Input**: không. **Output**: `{ admin_login:{email,password}, citizens_created, note }`.
+    Tài khoản mặc định: `canbo@dienbien.gov.vn` / `123456`.
+    """
     try:
         admins.create(AdminCreate(
             email="canbo@dienbien.gov.vn", password="123456",
@@ -56,7 +60,7 @@ def seed_people() -> dict:
     return {
         "admin_login": {"email": "canbo@dienbien.gov.vn", "password": "123456"},
         "citizens_created": len(demo_citizens),
-        "note": "Đăng nhập ở 1.2, rồi chạy 6.2 để tái hiện Mường Pồn 25/7.",
+        "note": "Đăng nhập ở 1.1, rồi chạy 6.2 để tái hiện Mường Pồn 25/7.",
     }
 
 
@@ -64,7 +68,10 @@ def seed_people() -> dict:
              summary="6.2 · Tái hiện lũ quét Mường Pồn đêm 24–25/7/2024")
 async def scenario_muong_pon() -> list[Alert]:
     """Nạp forecast ~180mm/24h (đất đã bão hoà) cho Mường Pồn → risk engine bắn cấp 3
-    → agent sinh bản tin Việt/Thái/Mông + TTS loa → chờ người duyệt (human-in-the-loop)."""
+    → agent sinh bản tin Việt/Thái/Mông + TTS loa → chờ người duyệt (human-in-the-loop).
+
+    **Input**: không. **Output**: mảng `Alert` (có lũ quét **cấp 3** ở `pending_approval`).
+    """
     commune = get_commune("muong_pon")
     assert commune is not None
     # Chuỗi 3 ngày mưa dồn: 2 ngày trước đã mưa (bão hoà) + đêm chính 180mm.
@@ -92,8 +99,11 @@ async def scenario_muong_pon() -> list[Alert]:
 def supabase_push() -> dict:
     """Upsert danh mục xã + công dân + nơi trú ẩn hiện có lên Supabase.
 
-    Yêu cầu `.env`: SUPABASE_URL + SUPABASE_KEY (và đã chạy `db/schema.sql`).
-    Chạy `6.1 seed` trước để có dữ liệu. Notifications tự đẩy khi gửi cảnh báo.
+    **Input**: không (đọc từ store hiện tại). Yêu cầu `.env`: `DB_BACKEND=supabase` +
+    `SUPABASE_URL` + `SUPABASE_KEY` (và đã chạy `db/schema.sql`). Chạy `6.1 seed` trước.
+
+    **Output**: `{ communes, citizens, shelters, notifications }` = số dòng đã đẩy. Chưa bật
+    Supabase → 400; lỗi kết nối → 502.
     """
     if not supabase_repo.enabled():
         raise HTTPException(400, "Chưa bật Supabase. Đặt DB_BACKEND=supabase + SUPABASE_URL/KEY trong .env")

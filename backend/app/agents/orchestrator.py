@@ -14,11 +14,9 @@ from datetime import datetime
 from app.config import get_settings
 from app.providers import dispatch as dispatch_provider
 from app.providers import llm, tts
-from app.schemas.alert import (Alert, AlertStatus, DispatchStatus,
-                               HazardEvent, HomeVisitTask)
+from app.schemas.alert import Alert, AlertStatus, DispatchStatus, HazardEvent
 from app.schemas.common import Channel, Lang
 from app.schemas.notification import Notification, NotificationStatus
-from app.services.admins import admins
 from app.services.alerts import alerts_store
 from app.services.citizens import citizens
 from app.services.notifications import notifications as notif_store
@@ -119,7 +117,9 @@ async def dispatch(alert: Alert) -> Alert:
         alerts_store.log(alert.id, "dispatch", f"[{ch.value}] {rec.status.value} — {rec.detail}")
         if rec.status == DispatchStatus.failed:
             any_fail = True
-            _escalate_home_visit(alert, rec.detail)
+            alerts_store.log(alert.id, "delivery_gap",
+                             f"[{ch.value}] lỗi — công dân nhận qua kênh này để trạng thái 'failed'. "
+                             "Cán bộ đến tận nhà xong thì cập nhật ở /notifications (status=home_visit).")
 
     _record_notifications(alert, ch_status)
 
@@ -197,17 +197,3 @@ async def retry_failed(alert: Alert) -> Alert:
     alert.status = AlertStatus.partial_failed if still_fail else AlertStatus.sent
     alerts_store.save(alert)
     return alert
-
-
-def _escalate_home_visit(alert: Alert, reason: str) -> None:
-    """Tạo task 'đến tận nhà báo' giao cho cán bộ phụ trách xã."""
-    assignees = admins.for_commune(alert.event.commune_code)
-    assigned = assignees[0].id if assignees else None
-    task = HomeVisitTask(
-        id=alerts_store.new_task_id(), alert_id=alert.id,
-        commune_code=alert.event.commune_code, assigned_admin_id=assigned,
-        reason=f"Gửi lỗi: {reason}", created_at=_now(),
-    )
-    alerts_store.add_home_visit(task)
-    alerts_store.log(alert.id, "home_visit",
-                     f"Tạo task đến-tận-nhà {task.id} → cán bộ {assigned or '(chưa có)'}.")

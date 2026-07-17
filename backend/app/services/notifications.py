@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import uuid
 
-from app.schemas.notification import Notification
+from app.schemas.notification import Notification, NotificationStatus
+from app.services import supabase_repo
 
 
 class NotificationStore:
@@ -13,6 +14,18 @@ class NotificationStore:
 
     def add(self, n: Notification) -> Notification:
         self._by_id[n.id] = n
+        return n
+
+    def update(self, notif_id: str, status: NotificationStatus,
+               detail: str | None = None) -> Notification | None:
+        """Cập nhật trạng thái 1 tin nhắn (vd cán bộ đã đến tận nhà → home_visit)."""
+        n = self._by_id.get(notif_id)
+        if n is None:
+            return None
+        n.status = status
+        if detail is not None:
+            n.detail = detail
+        supabase_repo.mirror(supabase_repo.push_notifications, [n])  # đồng bộ Supabase nếu bật
         return n
 
     def all(self) -> list[Notification]:

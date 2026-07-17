@@ -1,7 +1,7 @@
 """Gửi bản tin đa kênh: Zalo ZNS, SMS brandname, loa IP.
 
 Provider mock: mô phỏng kết quả TẤT ĐỊNH (theo tên xã) — hầu hết thành công,
-loa 'Huổi Chan' cố tình fail để minh hoạ luồng gửi-lại / đến-tận-nhà.
+loa Mường Pồn cố tình fail để minh hoạ luồng gửi-lại / cập nhật tin nhắn.
 Provider live: chỗ để cắm eSMS/VietGuys, Zalo OA/ZNS, API loa (Việt Hưng/VNPT/Viettel).
 """
 
@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.schemas.alert import DispatchRecord, DispatchStatus
 from app.schemas.common import Channel
 
-# Loa cố tình 'ngoại tuyến' để demo retry/home-visit (khớp ảnh dashboard).
+# Loa cố tình 'ngoại tuyến' để demo gửi lại / cập nhật tin nhắn (khớp ảnh dashboard).
 _OFFLINE_SPEAKERS = {"muong_pon"}  # xã có 1 cụm loa mất kết nối
 
 

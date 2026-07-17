@@ -14,13 +14,22 @@ router = APIRouter(prefix="/api/v1", tags=["2 · Bản đồ & Dự báo"])
 
 @router.get("/communes", response_model=list[Commune], summary="2.1 · Danh sách xã + toạ độ (bản đồ)")
 def list_communes() -> list[Commune]:
-    """Trả toạ độ/độ cao/độ nhạy cảm từng xã để vẽ marker lên bản đồ Điện Biên."""
+    """**Input**: không. **Output**: mảng `Commune` (`code, name, district, lat, lon,
+    elevation_m, landslide_susceptibility, population`) để vẽ marker lên bản đồ Điện Biên."""
     return all_communes()
 
 
 @router.get("/forecast/{code}", response_model=ForecastResponse,
             summary="2.2 · Dự báo 3–7 ngày cho 1 xã")
 async def forecast(code: str, days: int = Query(7, ge=1, le=16)) -> ForecastResponse:
+    """Dự báo đã hạ quy mô về 1 xã (Open-Meteo, fallback synthetic khi offline).
+
+    **Input**: path `code` (mã xã); query `days` (1–16, mặc định 7).
+
+    **Output**: `ForecastResponse` = `{ commune_code/name, lat, lon, elevation_m, source,
+    updated_at, days:[{date, precip_mm, temp_min/max/mean_c, wind_max_kmh, humidity_mean,
+    visibility_min_m}] }`. Sai mã xã → 404.
+    """
     commune = get_commune(code)
     if commune is None:
         raise HTTPException(404, f"Không có xã mã '{code}'")
@@ -30,7 +39,13 @@ async def forecast(code: str, days: int = Query(7, ge=1, le=16)) -> ForecastResp
 @router.get("/risk-map", response_model=list[CommuneRiskSummary],
             summary="2.3 · Nguy cơ theo xã (tô màu bản đồ)")
 async def risk_map(days: int = Query(3, ge=1, le=7)) -> list[CommuneRiskSummary]:
-    """Chạy dự báo + risk engine cho MỌI xã → cấp độ + màu để tô bản đồ / bảng nguy cơ."""
+    """Chạy dự báo + risk engine cho MỌI xã → cấp độ + màu tô bản đồ / bảng nguy cơ.
+
+    **Input**: query `days` (1–7, mặc định 3).
+
+    **Output**: mảng `CommuneRiskSummary` = `{ code, name, lat, lon, risk_level (0–5),
+    risk_color (hex), risk_label, top_hazard, top_hazard_label }`.
+    """
     out: list[CommuneRiskSummary] = []
     for commune in all_communes():
         fc = await weather.get_forecast(commune, days)

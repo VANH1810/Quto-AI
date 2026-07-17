@@ -14,7 +14,7 @@ settings = get_settings()
 
 tags_metadata = [
     {"name": "1 · Tài khoản (admin)",
-     "description": "Đăng ký/đăng nhập cán bộ. Lấy token rồi bấm **Authorize**."},
+     "description": "Đăng nhập cán bộ (không tự đăng ký — admin cấp sẵn). Lấy token rồi bấm **Authorize**."},
     {"name": "2 · Bản đồ & Dự báo",
      "description": "Danh sách xã + toạ độ, dự báo 3–7 ngày, nguy cơ tô màu theo xã."},
     {"name": "3 · DB1 · Công dân",
@@ -22,7 +22,7 @@ tags_metadata = [
     {"name": "4 · DB2 · Admin/Cán bộ",
      "description": "Cán bộ thôn/xã phụ trách vùng. **Cần đăng nhập admin.**"},
     {"name": "5 · Cảnh báo (AI Agent)",
-     "description": "Quét nguy cơ → agent sinh bản tin đa ngữ → human-in-the-loop → gửi/gửi lại → đến nhà."},
+     "description": "Quét nguy cơ → agent sinh bản tin đa ngữ → human-in-the-loop → gửi / gửi lại."},
     {"name": "6 · Demo — dữ liệu mẫu",
      "description": "Seed nhanh + tái hiện lũ quét Mường Pồn 25/7 + đẩy dữ liệu lên Supabase."},
     {"name": "7 · Nơi trú ẩn an toàn",
@@ -38,11 +38,11 @@ app = FastAPI(
     description=(
         "Backend AI-Agent cảnh báo sớm thiên tai cấp xã cho **Điện Biên**.\n\n"
         "## Luồng demo (đánh số theo tag)\n"
-        "1. `6.1` seed người dùng → `1.2` đăng nhập (canbo@dienbien.gov.vn / 123456) → **Authorize**\n"
+        "1. `6.1` seed người dùng → `1.1` đăng nhập (canbo@dienbien.gov.vn / 123456) → **Authorize**\n"
         "2. `2.1/2.2/2.3` xem xã, dự báo 7 ngày, bản đồ nguy cơ\n"
         "3. `6.2` tái hiện **Mường Pồn 25/7** → risk engine bắn **cấp 3 (cam)**\n"
         "4. `5.2` xem cảnh báo (đang *chờ phê duyệt*) → `5.4` duyệt & gửi\n"
-        "5. Loa Mường Pồn *ngoại tuyến* → `5.5` gửi lại / `5.6` task **đến tận nhà**\n\n"
+        "5. Loa *ngoại tuyến* → `5.5` gửi lại; ai chưa nhận (`8.1` failed_only) → `8.2` cập nhật khi **đến tận nhà**\n\n"
         f"> Weather: **{settings.weather_provider}** · LLM: **{settings.llm_provider}** · "
         f"TTS: **{settings.tts_provider}** · Dispatch: **{settings.dispatch_provider}** "
         "(đổi ở `.env`, mặc định chạy full mock không cần key)."
@@ -89,6 +89,8 @@ def root() -> RedirectResponse:
 
 @app.get("/health", tags=["9 · Hệ thống"], summary="9.1 · Kiểm tra sống")
 def health() -> dict:
+    """**Input**: không. **Output**: `{ status, version, db_backend, weather_provider,
+    llm_provider, human_approval_min_level }` — xem cấu hình đang chạy."""
     return {
         "status": "ok",
         "version": settings.app_version,
