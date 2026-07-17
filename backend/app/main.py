@@ -38,7 +38,8 @@ app = FastAPI(
     description=(
         "Backend AI-Agent cảnh báo sớm thiên tai cấp xã cho **Điện Biên**.\n\n"
         "## Luồng demo (đánh số theo tag)\n"
-        "1. `6.1` seed người dùng → `1.1` đăng nhập (canbo@dienbien.gov.vn / 123456) → **Authorize**\n"
+        "1. `1.1` đăng nhập `canbo.muong_pon@dienbien.gov.vn` / `123456` → copy `access_token` → "
+        "bấm **Authorize** → dán vào ô **Value** (dữ liệu 45 xã tự seed khi khởi động)\n"
         "2. `2.1/2.2/2.3` xem xã, dự báo 7 ngày, bản đồ nguy cơ\n"
         "3. `6.2` tái hiện **Mường Pồn 25/7** → risk engine bắn **cấp 3 (cam)**\n"
         "4. `5.2` xem cảnh báo (đang *chờ phê duyệt*) → `5.4` duyệt & gửi\n"
@@ -61,25 +62,41 @@ app.include_router(notifications.router)
 
 
 @app.on_event("startup")
-def _load_from_supabase() -> None:
-    """Nếu DB_BACKEND=supabase: kéo công dân + nơi trú ẩn từ Supabase nạp vào store."""
+def _bootstrap() -> None:
+    """Bảo đảm LUÔN có admin để đăng nhập, kể cả sau khi Render restart (store in-memory).
+
+    1) Nếu bật Supabase: kéo admins + citizens về (shelters tự sinh từ danh mục xã).
+    2) Nếu vẫn chưa có admin (Supabase trống / chạy memory): tự seed admin + công dân.
+    """
     from app.services import supabase_repo
-    if not supabase_repo.enabled():
-        return
-    try:
-        from app.schemas.citizen import CitizenCreate
-        from app.schemas.shelter import ShelterCreate
-        from app.services.citizens import citizens
-        from app.services.shelters import shelters as shelter_store
-        for row in supabase_repo.fetch_citizens():
-            row.pop("id", None); row.pop("preferred_lang", None)
-            citizens.upsert(CitizenCreate(**row))
-        for row in supabase_repo.fetch_shelters():
-            row.pop("id", None); row.pop("distance_km", None)
-            shelter_store.create(ShelterCreate(**row))
-        print("[startup] Đã nạp dữ liệu từ Supabase.")
-    except Exception as e:  # noqa: BLE001
-        print(f"[startup] Bỏ qua nạp Supabase: {e}")
+    from app.services.admins import admins
+    from app.services.citizens import citizens
+
+    if supabase_repo.enabled():
+        try:
+            from app.schemas.citizen import CitizenCreate
+            for row in supabase_repo.fetch_admins():
+                admins.load_raw(row)
+            for row in supabase_repo.fetch_citizens():
+                row.pop("id", None); row.pop("preferred_lang", None)
+                citizens.upsert(CitizenCreate(**row), mirror=False)
+            print(f"[startup] Supabase: {len(admins.all())} cán bộ, {len(citizens.all())} công dân.")
+        except Exception as e:  # noqa: BLE001
+            print(f"[startup] Bỏ qua nạp Supabase: {e}")
+
+    # Fallback: không có admin nào → tự seed để đăng nhập được ngay.
+    if not admins.all():
+        from app.services import seed
+        for a in seed.generate_admins():
+            try:
+                admins.create(a, mirror=False)
+            except ValueError:
+                pass
+        if not citizens.all():
+            for c in seed.generate_citizens(10):
+                citizens.upsert(c, mirror=False)
+        print(f"[startup] Auto-seed: {len(admins.all())} cán bộ, {len(citizens.all())} công dân "
+              "(đăng nhập: canbo.<mã_xã>@dienbien.gov.vn / 123456).")
 
 
 @app.get("/", include_in_schema=False)

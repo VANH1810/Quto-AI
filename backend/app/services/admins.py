@@ -70,6 +70,19 @@ class AdminStore:
             supabase_repo.mirror(supabase_repo.push_admins, [rec])
         return rec
 
+    def load_raw(self, row: dict) -> AdminRecord:
+        """Nạp 1 admin từ Supabase (đã có password_hash) — KHÔNG hash lại."""
+        rec = AdminRecord(
+            id=row["id"], email=(row.get("email") or "").strip().lower(),
+            full_name=row.get("full_name", ""), age=row.get("age") or 0,
+            phone=row.get("phone", ""), role=AdminRole(row.get("role", "commune")),
+            communes=row.get("communes") or [], password_hash=row["password_hash"],
+            ethnicity=row.get("ethnicity"), religion=row.get("religion"),
+        )
+        self._by_email[rec.email] = rec
+        self._by_id[rec.id] = rec
+        return rec
+
     def get_by_email(self, email: str) -> AdminRecord | None:
         return self._by_email.get((email or "").strip().lower())
 

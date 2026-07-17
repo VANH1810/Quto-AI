@@ -37,6 +37,13 @@ class AdminPublic(AdminBase):
     email: str
 
 
+class LoginRequest(BaseModel):
+    """Đăng nhập gọn: chỉ email + mật khẩu."""
+
+    email: str = Field(..., examples=["canbo.muong_pon@dienbien.gov.vn"])
+    password: str = Field(..., examples=["123456"])
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

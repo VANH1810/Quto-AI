@@ -86,6 +86,13 @@ def mirror(push_fn, items) -> None:
 
 
 # ---- FETCH (kéo về) ----
+def fetch_admins() -> list[dict]:
+    client = _client()
+    if client is None:
+        return []
+    return client.table("admins").select("*").execute().data or []
+
+
 def fetch_citizens() -> list[dict]:
     client = _client()
     if client is None:
