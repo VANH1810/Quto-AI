@@ -69,7 +69,10 @@ class RescueStore:
                 phone = phone or c.phone
                 commune_code = commune_code or c.commune_code
 
-        commune = get_commune(commune_code) if commune_code else nearest_commune(data.lat, data.lon)
+        # commune_code có thể trống HOẶC sai (Swagger hay điền "string") → tự suy từ toạ độ.
+        commune = get_commune(commune_code) if commune_code else None
+        if commune is None:
+            commune = nearest_commune(data.lat, data.lon)
         shelter = shelters.nearest(commune.code, data.lat, data.lon)
 
         rid = "sos_" + uuid.uuid4().hex[:10]
