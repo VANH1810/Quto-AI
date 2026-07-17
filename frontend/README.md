@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Mở [http://localhost:3000](http://localhost:3000).
+Mở [http://localhost:3000](http://localhost:3000) cho bản đồ công dân, hoặc [http://localhost:3000/admin](http://localhost:3000/admin) cho bảng điều hành nội bộ. Cả hai route chạy trong cùng một ứng dụng Next.js và cùng cổng `3000`.
 
 Kiểm tra chất lượng trước khi bàn giao:
 
@@ -48,7 +48,19 @@ NEXT_PUBLIC_DATA_SOURCE=api
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
-UI không gọi API trực tiếp. `services/dataSource.ts` triển khai cùng một `AlertDataSource` cho mock và backend; component chỉ nhận các kiểu dữ liệu chuẩn hóa trong `types/`. Backend cần cho phép CORS từ origin của frontend khi chạy hai server ở hai cổng khác nhau.
+`services/dataSource.ts` triển khai cùng một `AlertDataSource` cho mock và backend; component chỉ nhận các kiểu dữ liệu chuẩn hóa trong `types/`. Route `/admin` gọi API điều hành tại `NEXT_PUBLIC_API_BASE_URL`, trong khi route bản đồ vẫn tôn trọng `NEXT_PUBLIC_DATA_SOURCE`. Khi chạy local, backend cần cho phép CORS từ `http://localhost:3000`.
+
+## Console điều hành
+
+Các route vận hành dùng cùng ứng dụng: `/admin`, `/admin/alerts`, `/admin/risks`, `/admin/delivery`, `/admin/speakers` và `/admin/audit`.
+
+Để trình diễn độc lập với backend, đặt rõ ràng trong `.env.local`:
+
+```env
+NEXT_PUBLIC_USE_MOCKS=true
+```
+
+Mock chỉ được bật bằng biến môi trường này; không tự chuyển sang mock khi API trả lỗi xác thực hoặc lỗi máy chủ. Chế độ mock gán admin demo cho bốn xã Sín Thầu, Nậm Kè, Quảng Lâm, Na Sang và có hai nhóm cần liên hệ trực tiếp được tách theo `alertId`.
 
 ## Cấu trúc
 

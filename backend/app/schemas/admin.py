@@ -47,3 +47,19 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class AdminCommune(BaseModel):
+    """Phạm vi địa bàn trả về cho admin đang đăng nhập."""
+
+    id: str
+    code: str
+    name: str
+    districtId: str
+    districtName: str
+
+
+class DataEnvelope(BaseModel):
+    """Envelope cho các API console admin mới, tách với API legacy trả list thẳng."""
+
+    data: object

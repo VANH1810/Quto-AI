@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
+import "./admin/admin.css";
 
 export const metadata: Metadata = {
   title: "Bản tin an toàn · Điện Biên",

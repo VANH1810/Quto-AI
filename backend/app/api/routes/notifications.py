@@ -6,8 +6,10 @@ cập nhật `status=home_visit`. (Đây là phần thay cho bảng home_visits 
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.schemas.admin import AdminPublic
 from app.schemas.notification import Notification, NotificationUpdate
 from app.security import get_current_admin
+from app.services.admin_scope import commune_codes_for, require_commune_access
 from app.services.notifications import notifications
 
 router = APIRouter(prefix="/api/v1/notifications", tags=["8 · DB3 · Tin nhắn cá nhân"],
@@ -16,7 +18,8 @@ router = APIRouter(prefix="/api/v1/notifications", tags=["8 · DB3 · Tin nhắn
 
 @router.get("", response_model=list[Notification], summary="8.1 · Danh sách tin nhắn đã gửi")
 def list_notifications(alert_id: str | None = None, cccd: str | None = None,
-                       failed_only: bool = False) -> list[Notification]:
+                       failed_only: bool = False,
+                       admin: AdminPublic = Depends(get_current_admin)) -> list[Notification]:
     """Xem tin nhắn cảnh báo cấp cá nhân.
 
     **Input** (query, tuỳ chọn): `alert_id` lọc theo 1 cảnh báo · `cccd` lọc theo 1 công dân ·
@@ -31,6 +34,8 @@ def list_notifications(alert_id: str | None = None, cccd: str | None = None,
         items = notifications.by_citizen(cccd)
     else:
         items = notifications.all()
+    scope = set(commune_codes_for(admin))
+    items = [item for item in items if item.commune_code in scope]
     if failed_only:
         items = [n for n in items if n.status.value == "failed"]
     return items
@@ -38,7 +43,8 @@ def list_notifications(alert_id: str | None = None, cccd: str | None = None,
 
 @router.patch("/{notif_id}", response_model=Notification,
               summary="8.2 · Cập nhật tin nhắn (đã đến tận nhà báo)")
-def update_notification(notif_id: str, body: NotificationUpdate) -> Notification:
+def update_notification(notif_id: str, body: NotificationUpdate,
+                        admin: AdminPublic = Depends(get_current_admin)) -> Notification:
     """Cập nhật trạng thái 1 tin nhắn — thay cho thao tác 'đóng task đến nhà'.
 
     **Input**: path `notif_id`; body `NotificationUpdate` = `{ status: sent|failed|home_visit,
@@ -46,7 +52,10 @@ def update_notification(notif_id: str, body: NotificationUpdate) -> Notification
 
     **Output**: bản ghi `Notification` sau khi cập nhật (đồng bộ luôn lên Supabase nếu đang bật).
     """
-    n = notifications.update(notif_id, body.status, body.detail)
-    if n is None:
+    existing = notifications.get(notif_id)
+    if existing is None:
         raise HTTPException(404, "Không tìm thấy tin nhắn")
+    require_commune_access(admin, existing.commune_code)
+    n = notifications.update(notif_id, body.status, body.detail)
+    assert n is not None
     return n

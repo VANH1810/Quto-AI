@@ -1,5 +1,7 @@
 """Nhóm 2 — Bản đồ & Dự báo: danh sách xã, forecast 3–7 ngày, nguy cơ theo xã."""
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.agents import risk_engine
@@ -46,17 +48,22 @@ async def risk_map(days: int = Query(3, ge=1, le=7)) -> list[CommuneRiskSummary]
     **Output**: mảng `CommuneRiskSummary` = `{ code, name, lat, lon, risk_level (0–5),
     risk_color (hex), risk_label, top_hazard, top_hazard_label }`.
     """
-    out: list[CommuneRiskSummary] = []
-    for commune in all_communes():
-        fc = await weather.get_forecast(commune, days)
+    # Từng xã độc lập. Chạy tuần tự khiến một lượt map 45 xã chờ tối đa 45 lần
+    # timeout Open-Meteo; giới hạn 8 request song song để vẫn lịch sự với provider.
+    semaphore = asyncio.Semaphore(8)
+
+    async def build_summary(commune: Commune) -> CommuneRiskSummary:
+        async with semaphore:
+            fc = await weather.get_forecast(commune, days)
         events = risk_engine.evaluate(fc, commune)
         top = risk_engine.top_event(events)
         level = top.risk_level if top else 0
         rm = risk_meta(level)
-        out.append(CommuneRiskSummary(
+        return CommuneRiskSummary(
             code=commune.code, name=commune.name, lat=commune.lat, lon=commune.lon,
             risk_level=level, risk_color=rm["color"], risk_label=rm["label_vi"],
             top_hazard=top.hazard if top else None,
             top_hazard_label=HAZARD_META.get(top.hazard, {}).get("label_vi") if top else None,
-        ))
-    return out
+        )
+
+    return list(await asyncio.gather(*(build_summary(commune) for commune in all_communes())))

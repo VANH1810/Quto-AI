@@ -11,6 +11,7 @@ from app.providers import weather
 from app.schemas.admin import AdminPublic
 from app.schemas.alert import Alert, ApproveRequest
 from app.security import get_current_admin
+from app.services.admin_scope import commune_codes_for, require_commune_access
 from app.services.alerts import alerts_store
 from app.services.geo_data import get_commune
 
@@ -20,7 +21,8 @@ router = APIRouter(prefix="/api/v1/alerts", tags=["5 · Cảnh báo (AI Agent)"]
 
 @router.post("/scan/{code}", response_model=list[Alert],
              summary="5.1 · Quét nguy cơ 1 xã → agent tạo cảnh báo")
-async def scan_commune(code: str, days: int = 3) -> list[Alert]:
+async def scan_commune(code: str, days: int = 3,
+                       admin: AdminPublic = Depends(get_current_admin)) -> list[Alert]:
     """Chạy dự báo → risk engine → agent sinh bản tin cho mỗi hazard.
 
     **Input**: path `code` (mã xã, vd `muong_pon`); query `days` (1–7, mặc định 3). Cần token.
@@ -31,24 +33,27 @@ async def scan_commune(code: str, days: int = 3) -> list[Alert]:
     commune = get_commune(code)
     if commune is None:
         raise HTTPException(404, f"Không có xã mã '{code}'")
+    require_commune_access(admin, code)
     fc = await weather.get_forecast(commune, days)
     events = risk_engine.evaluate(fc, commune)
     return [await orchestrator.create_alert(ev) for ev in events]
 
 
 @router.get("", response_model=list[Alert], summary="5.2 · Danh sách cảnh báo")
-def list_alerts() -> list[Alert]:
+def list_alerts(admin: AdminPublic = Depends(get_current_admin)) -> list[Alert]:
     """**Input**: không (cần token). **Output**: mảng `Alert` mới nhất trước."""
-    return alerts_store.all()
+    scope = set(commune_codes_for(admin))
+    return [alert for alert in alerts_store.all() if alert.event.commune_code in scope]
 
 
 @router.get("/{alert_id}", response_model=Alert, summary="5.3 · Chi tiết cảnh báo + nhật ký")
-def get_alert(alert_id: str) -> Alert:
+def get_alert(alert_id: str, admin: AdminPublic = Depends(get_current_admin)) -> Alert:
     """**Input**: path `alert_id`. **Output**: 1 `Alert` đầy đủ (bulletins, dispatches, audit)
     hoặc 404 nếu không tồn tại."""
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")
+    require_commune_access(admin, a.event.commune_code)
     return a
 
 
@@ -67,6 +72,7 @@ async def approve(alert_id: str, body: ApproveRequest,
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")
+    require_commune_access(admin, a.event.commune_code)
     if body.approve:
         return await orchestrator.approve_and_dispatch(a, admin.id, body.edited_body_vi)
     return await orchestrator.reject(a, admin.id, body.note)
@@ -74,7 +80,7 @@ async def approve(alert_id: str, body: ApproveRequest,
 
 @router.post("/{alert_id}/retry", response_model=Alert,
              summary="5.5 · Gửi lại các kênh bị lỗi")
-async def retry(alert_id: str) -> Alert:
+async def retry(alert_id: str, admin: AdminPublic = Depends(get_current_admin)) -> Alert:
     """Thử gửi lại các kênh đang `failed` và cập nhật lại trạng thái tin nhắn cá nhân.
 
     **Input**: path `alert_id` (cần token). **Output**: `Alert` với `dispatches` đã cập nhật;
@@ -83,4 +89,5 @@ async def retry(alert_id: str) -> Alert:
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")
+    require_commune_access(admin, a.event.commune_code)
     return await orchestrator.retry_failed(a)

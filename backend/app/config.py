@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 240
 
+    # Frontend public map và admin console chạy khác port khi phát triển local.
+    # Chuỗi CSV giúp cấu hình .env đơn giản, không cần JSON list của Pydantic.
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -28,6 +28,11 @@ class RescueStatus(str, Enum):
     resolved = "resolved"          # đã cứu/xử lý xong
     cancelled = "cancelled"        # huỷ (báo nhầm/trùng)
 
+class CommuneMappingStatus(str, Enum):
+    mapped = "MAPPED"
+    unmapped = "UNMAPPED"
+    manually_confirmed = "MANUALLY_CONFIRMED"
+
 
 class TeamStatus(str, Enum):
     available = "available"
@@ -53,8 +58,8 @@ def priority_of(danger: DangerType) -> str:
 class SosCreate(BaseModel):
     """Người gặp nạn gửi (từ app dân / web). Toạ độ bắt buộc; danh tính tuỳ chọn."""
 
-    lat: float = Field(..., examples=[21.531])
-    lon: float = Field(..., examples=[103.081])
+    lat: float = Field(..., ge=-90, le=90, examples=[21.531])
+    lon: float = Field(..., ge=-180, le=180, examples=[103.081])
     danger_type: DangerType = DangerType.flood_trapped
     num_people: int = Field(1, ge=1, description="Số người đang gặp nạn")
     full_name: str | None = None
@@ -74,8 +79,9 @@ class RescueRequest(BaseModel):
     phone: str | None = None
     cccd: str | None = None
     note: str | None = None
-    commune_code: str
-    commune_name: str
+    commune_code: str | None = None
+    commune_name: str | None = None
+    mapping_status: CommuneMappingStatus = CommuneMappingStatus.unmapped
     priority: str
     status: RescueStatus
     assigned_team_id: str | None = None
@@ -85,6 +91,7 @@ class RescueRequest(BaseModel):
     nearest_shelter_name: str | None = None
     created_at: str
     updated_at: str
+    audit: list[dict] = Field(default_factory=list)
 
 
 class RescueStatusUpdate(BaseModel):
