@@ -1,17 +1,18 @@
 import { createMockAlerts } from "@/data/mockAlerts";
 import { shelters as verifiedShelters } from "@/data/shelters";
+import { getApiBaseUrl } from "@/services/apiConfig";
 import type { CommuneAlert, CommuneCenter, CommuneGeoJSON, DashboardData, HazardType, ProvinceGeoJSON, RiskLevel, Shelter } from "@/types";
 import { dispersedRepresentativePointsFromFeature, representativePointFromFeature } from "@/utils/geo";
 import { HAZARD_META } from "@/utils/risk";
 
 export interface AlertDataSource {
-  getDashboardData(): Promise<DashboardData>;
+  getDashboardData(signal?: AbortSignal): Promise<DashboardData>;
 }
 
-async function getBoundaries(): Promise<{ boundaries: CommuneGeoJSON; provinceBoundary: ProvinceGeoJSON }> {
+async function getBoundaries(signal?: AbortSignal): Promise<{ boundaries: CommuneGeoJSON; provinceBoundary: ProvinceGeoJSON }> {
   const [communeResponse, provinceResponse] = await Promise.all([
-    fetch("/data/dien-bien-communes.geojson"),
-    fetch("/data/dien-bien-province.geojson"),
+    fetch("/data/dien-bien-communes.geojson", { cache: "force-cache", signal }),
+    fetch("/data/dien-bien-province.geojson", { cache: "force-cache", signal }),
   ]);
   if (!communeResponse.ok || !provinceResponse.ok) throw new Error("Không thể tải ranh giới hành chính Điện Biên");
   return {
@@ -35,10 +36,17 @@ function centersFromBoundaries(boundaries: CommuneGeoJSON): CommuneCenter[] {
 }
 
 function ensureShelterCoverage(boundaries: CommuneGeoJSON, sourceShelters: Shelter[]): Shelter[] {
+  const sheltersByCommune = new Map<string, Shelter[]>();
+  for (const shelter of sourceShelters) {
+    const communeShelters = sheltersByCommune.get(shelter.communeCode);
+    if (communeShelters) communeShelters.push(shelter);
+    else sheltersByCommune.set(shelter.communeCode, [shelter]);
+  }
+
   return boundaries.features.flatMap((feature) => {
     const communeCode = feature.properties.code;
     const communeName = feature.properties.name;
-    const existing = sourceShelters.filter((shelter) => shelter.communeCode === communeCode).slice(0, 3);
+    const existing = (sheltersByCommune.get(communeCode) ?? []).slice(0, 3);
     const missingCount = Math.max(0, 2 - existing.length);
     if (missingCount === 0) return existing;
 
@@ -83,10 +91,9 @@ function ensureShelterCoverage(boundaries: CommuneGeoJSON, sourceShelters: Shelt
 }
 
 class MockAlertDataSource implements AlertDataSource {
-  async getDashboardData(): Promise<DashboardData> {
-    const { boundaries, provinceBoundary } = await getBoundaries();
+  async getDashboardData(signal?: AbortSignal): Promise<DashboardData> {
+    const { boundaries, provinceBoundary } = await getBoundaries(signal);
     const communeCenters = centersFromBoundaries(boundaries);
-    await new Promise((resolve) => setTimeout(resolve, 220));
     return {
       provinceBoundary,
       boundaries,
@@ -135,12 +142,12 @@ interface ApiShelter {
 class BackendAlertDataSource implements AlertDataSource {
   constructor(private readonly baseUrl: string) {}
 
-  async getDashboardData(): Promise<DashboardData> {
+  async getDashboardData(signal?: AbortSignal): Promise<DashboardData> {
     const [boundaryData, riskResponse, communeResponse, shelterResponse] = await Promise.all([
-      getBoundaries(),
-      fetch(`${this.baseUrl}/api/v1/risk-map`),
-      fetch(`${this.baseUrl}/api/v1/communes`),
-      fetch(`${this.baseUrl}/api/v1/shelters`),
+      getBoundaries(signal),
+      fetch(`${this.baseUrl}/api/v1/risk-map`, { signal }),
+      fetch(`${this.baseUrl}/api/v1/communes`, { signal }),
+      fetch(`${this.baseUrl}/api/v1/shelters`, { signal }),
     ]);
     if (!riskResponse.ok || !communeResponse.ok || !shelterResponse.ok) {
       throw new Error("Backend chưa sẵn sàng hoặc trả về dữ liệu không hợp lệ");
@@ -205,7 +212,7 @@ class BackendAlertDataSource implements AlertDataSource {
 
 export function createAlertDataSource(): AlertDataSource {
   if (process.env.NEXT_PUBLIC_DATA_SOURCE === "api") {
-    return new BackendAlertDataSource(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000");
+    return new BackendAlertDataSource(getApiBaseUrl());
   }
   return new MockAlertDataSource();
 }

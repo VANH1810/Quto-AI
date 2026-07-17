@@ -1,8 +1,9 @@
 import { Building2, MapPin, MapPinned } from "lucide-react";
+import { memo } from "react";
 import { RISK_META } from "@/utils/risk";
 import type { RiskLevel } from "@/types";
 
-export function MapLegend() {
+export const MapLegend = memo(function MapLegend() {
   return (
     <div className="map-legend">
       <strong>Mức cảnh báo</strong>
@@ -18,4 +19,4 @@ export function MapLegend() {
       </div>
     </div>
   );
-}
+});

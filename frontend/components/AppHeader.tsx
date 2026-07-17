@@ -3,9 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 
-export function AppHeader() {
+export const AppHeader = memo(function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -33,4 +33,4 @@ export function AppHeader() {
       </nav>
     </header>
   );
-}
+});

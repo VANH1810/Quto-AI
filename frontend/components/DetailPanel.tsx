@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { memo, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   ArrowRight,
   Building2,
@@ -19,7 +19,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import type { CommuneAlert, CommuneCenter, Coordinates, HazardType, SelectedPlace, Shelter, UserPosition } from "@/types";
+import type { CommuneAlert, CommuneCenter, Coordinates, HazardType, SelectedPlace, Shelter } from "@/types";
 import { googleMapsDirectionsUrl } from "@/utils/directions";
 import { RISK_META } from "@/utils/risk";
 import { SHELTER_KIND_LABELS } from "@/utils/shelter";
@@ -29,7 +29,6 @@ interface DetailPanelProps {
   alerts: CommuneAlert[];
   communes: CommuneCenter[];
   shelters: Shelter[];
-  userPosition: UserPosition | null;
   routeOrigin: Coordinates | null;
   onSelectShelter: (id: string) => void;
   onClose: () => void;
@@ -49,7 +48,7 @@ const HAZARD_ICONS: Record<HazardType, LucideIcon> = {
   fog: CloudFog,
 };
 
-export function DetailPanel({ selection, alerts, communes, shelters, routeOrigin, onSelectShelter, onClose }: DetailPanelProps) {
+export const DetailPanel = memo(function DetailPanel({ selection, alerts, communes, shelters, routeOrigin, onSelectShelter, onClose }: DetailPanelProps) {
   const visibleSelection = selection?.type === "commune" || selection?.type === "shelter" ? selection : null;
   const [renderedSelection, setRenderedSelection] = useState<SelectedPlace | null>(visibleSelection);
   const [isOpen, setIsOpen] = useState(Boolean(visibleSelection));
@@ -66,21 +65,25 @@ export function DetailPanel({ selection, alerts, communes, shelters, routeOrigin
     return () => window.clearTimeout(timeout);
   }, [visibleSelection]);
 
+  const alertsByCommune = useMemo(() => new Map(alerts.map((alert) => [alert.communeCode, alert])), [alerts]);
+  const communesByCode = useMemo(() => new Map(communes.map((commune) => [commune.code, commune])), [communes]);
+  const sheltersById = useMemo(() => new Map(shelters.map((shelter) => [shelter.id, shelter])), [shelters]);
+
   if (!renderedSelection) return null;
 
   const selectedAlert = renderedSelection.type === "commune"
-    ? alerts.find((alert) => alert.communeCode === renderedSelection.id)
+    ? alertsByCommune.get(renderedSelection.id)
     : undefined;
   const selectedCommune = selectedAlert
-    ? communes.find((item) => item.code === selectedAlert.communeCode)
+    ? communesByCode.get(selectedAlert.communeCode)
     : undefined;
   const selectedShelter = renderedSelection.type === "shelter"
-    ? shelters.find((item) => item.id === renderedSelection.id)
+    ? sheltersById.get(renderedSelection.id)
     : undefined;
   const panelClassName = `detail-panel ${isOpen ? "is-open" : "is-closing"}`;
 
   if (selectedShelter) {
-    const alert = alerts.find((item) => item.communeCode === selectedShelter.communeCode);
+    const alert = alertsByCommune.get(selectedShelter.communeCode);
     const risk = alert ? RISK_META[alert.riskLevel] : RISK_META[1];
     const ShelterHazardIcon = alert ? HAZARD_ICONS[alert.hazard] : ShieldAlert;
 
@@ -160,4 +163,4 @@ export function DetailPanel({ selection, alerts, communes, shelters, routeOrigin
       </div>
     </aside>
   );
-}
+});

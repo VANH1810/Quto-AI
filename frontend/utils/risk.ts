@@ -15,7 +15,3 @@ export const HAZARD_META: Record<HazardType, { label: string; icon: string }> = 
   frost: { label: "Rét hại", icon: "snowflake" },
   fog: { label: "Sương mù", icon: "cloud-fog" },
 };
-
-export function getHighestAlert<T extends { riskLevel: RiskLevel }>(alerts: T[]): T | undefined {
-  return [...alerts].sort((a, b) => b.riskLevel - a.riskLevel)[0];
-}

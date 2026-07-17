@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, LocateFixed, MapPinned } from "lucide-react";
 import type { CommuneAlert, CommuneCenter, HazardType, RiskFilter } from "@/types";
 import { HAZARD_META, RISK_META } from "@/utils/risk";
@@ -30,18 +30,26 @@ interface SearchSidebarProps {
   onLocate: () => void;
 }
 
-export function SearchSidebar(props: SearchSidebarProps) {
+export const SearchSidebar = memo(function SearchSidebar(props: SearchSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const blurTimeoutRef = useRef<number | null>(null);
   const normalized = props.query.trim().toLocaleLowerCase("vi");
   const alertsByCommune = useMemo(() => new Map(props.alerts.map((alert) => [alert.communeCode, alert])), [props.alerts]);
   const selectedCommune = props.communes.find((commune) => commune.code === props.selectedCommuneCode);
   const selectedNameIsShown = selectedCommune?.name === props.query;
-  const visibleCommunes = selectedNameIsShown
-    ? props.communes
-    : props.communes.filter((commune) =>
-        !normalized || `${commune.name} ${commune.district}`.toLocaleLowerCase("vi").includes(normalized),
-      );
+  const visibleCommunes = useMemo(
+    () => selectedNameIsShown
+      ? props.communes
+      : props.communes.filter((commune) =>
+          !normalized || `${commune.name} ${commune.district}`.toLocaleLowerCase("vi").includes(normalized),
+        ),
+    [normalized, props.communes, selectedNameIsShown],
+  );
+
+  useEffect(() => () => {
+    if (blurTimeoutRef.current !== null) window.clearTimeout(blurTimeoutRef.current);
+  }, []);
 
   function selectCommune(commune: CommuneCenter) {
     props.onSelectCommune(commune.code);
@@ -81,8 +89,13 @@ export function SearchSidebar(props: SearchSidebarProps) {
               aria-controls="commune-options"
               aria-activedescendant={isOpen && visibleCommunes[activeIndex] ? `commune-${visibleCommunes[activeIndex].code}` : undefined}
               value={props.query}
-              onFocus={() => setIsOpen(true)}
-              onBlur={() => window.setTimeout(() => setIsOpen(false), 0)}
+              onFocus={() => {
+                if (blurTimeoutRef.current !== null) window.clearTimeout(blurTimeoutRef.current);
+                setIsOpen(true);
+              }}
+              onBlur={() => {
+                blurTimeoutRef.current = window.setTimeout(() => setIsOpen(false), 0);
+              }}
               onChange={(event) => {
                 props.onQueryChange(event.target.value);
                 setActiveIndex(0);
@@ -151,4 +164,4 @@ export function SearchSidebar(props: SearchSidebarProps) {
       </section>
     </aside>
   );
-}
+});
