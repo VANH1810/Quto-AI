@@ -9,8 +9,8 @@ TTS_PROVIDER=mms để cắm Meta MMS (cần transformers + torch + kiểm tra v
 
 from __future__ import annotations
 
-from app.config import get_settings
-from app.schemas.common import Lang
+from agent_worker.config import get_worker_settings as get_settings
+from agent_worker.shared.common import Lang
 
 MMS_CODE = {Lang.vi: "vie", Lang.tai: "blt", Lang.hmn: "mww"}
 
