@@ -16,7 +16,7 @@ tags_metadata = [
     {"name": "1 · Tài khoản (admin)",
      "description": "Đăng nhập cán bộ (không tự đăng ký — admin cấp sẵn). Lấy token rồi bấm **Authorize**."},
     {"name": "2 · Bản đồ & Dự báo",
-     "description": "Danh sách xã + toạ độ, dự báo 3–7 ngày, nguy cơ tô màu theo xã."},
+     "description": "Danh sách xã + toạ độ, dự báo 1–7 ngày, nguy cơ tô màu theo xã."},
     {"name": "3 · DB1 · Công dân",
      "description": "Dữ liệu dân cư (khoá = CCCD). **Cần đăng nhập admin.**"},
     {"name": "4 · DB2 · Admin/Cán bộ",
