@@ -11,10 +11,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.schemas.alert import HazardEvent, Provenance
-from app.schemas.common import Hazard, risk_meta
-from app.schemas.forecast import DailyForecast, ForecastResponse
-from app.schemas.geo import Commune
+from agent_worker.shared.alert import HazardEvent, Provenance
+from agent_worker.shared.common import Hazard, risk_meta
+from agent_worker.shared.forecast import DailyForecast, ForecastResponse
+from agent_worker.shared.geo import Commune
 
 
 @dataclass(frozen=True)

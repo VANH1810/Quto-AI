@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import json
 
-from app.config import get_settings
-from app.schemas.alert import BulletinText, HazardEvent
-from app.schemas.common import HAZARD_META, Lang
+from agent_worker.config import get_worker_settings as get_settings
+from agent_worker.shared.alert import BulletinText, HazardEvent
+from agent_worker.shared.common import HAZARD_META, Lang
 
 # Câu mở đầu theo ngôn ngữ (mock). Thái/Mông ở đây là bản rút gọn minh hoạ —
 # sản phẩm thật dùng biên dịch cộng đồng + TTS Meta MMS (blt/mww).
@@ -36,6 +36,25 @@ def _mock_bulletin(event: HazardEvent, lang: Lang) -> BulletinText:
     elif lang == Lang.hmn:
         body = "[Mông/Hmong] " + body
     return BulletinText(lang=lang.value, title=title, body=body)
+
+
+async def generate_bulletins_with_meta(
+    event: HazardEvent, langs: list[Lang],
+) -> tuple[list[BulletinText], dict]:
+    """Như generate_bulletins nhưng trả kèm meta cho LLM Result DB.
+
+    meta = {provider, model, thinking, usage}. Mock: thinking=None, usage rỗng.
+    Provider thật: model theo cấu hình; token/thinking để trống nếu SDK không trả
+    (nâng cấp sau bằng cách đọc resp.usage / usage_metadata trong _call).
+    """
+    settings = get_settings()
+    provider = settings.llm_provider.lower()
+    model = ("mock" if provider == "mock"
+             else settings.gemini_model if provider == "gemini"
+             else settings.openai_model)
+    bulletins = await generate_bulletins(event, langs)
+    meta = {"provider": provider, "model": model, "thinking": None, "usage": {}}
+    return bulletins, meta
 
 
 async def generate_bulletins(event: HazardEvent, langs: list[Lang]) -> list[BulletinText]:
