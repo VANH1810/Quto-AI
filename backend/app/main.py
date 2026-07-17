@@ -4,9 +4,10 @@ Chạy:  uvicorn app.main:app --reload  → http://localhost:8000/docs
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-from app.api.routes import (admins, alerts, auth, citizens, dev, forecast,
+from app.api.routes import (admin_console, admin_sos, admins, alerts, auth, citizens, dev, forecast,
                             notifications, rescue, shelters)
 from app.config import get_settings
 
@@ -53,10 +54,20 @@ app = FastAPI(
     openapi_tags=tags_metadata,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 app.include_router(auth.router)
 app.include_router(forecast.router)
 app.include_router(citizens.router)
 app.include_router(admins.router)
+app.include_router(admin_console.router)
+app.include_router(admin_sos.router)
 app.include_router(alerts.router)
 app.include_router(dev.router)
 app.include_router(shelters.router)

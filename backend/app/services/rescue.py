@@ -16,6 +16,7 @@ from app.schemas.rescue import (RescueRequest, RescueStatus, RescueTeam,
 from app.services import supabase_repo
 from app.services.geo_data import (all_communes, get_commune, haversine_km,
                                    nearest_commune, short_name)
+from app.services.commune_boundary import resolve_commune_from_coordinates
 
 _AVG_SPEED_KMH = 30.0
 
@@ -69,20 +70,21 @@ class RescueStore:
                 phone = phone or c.phone
                 commune_code = commune_code or c.commune_code
 
-        # commune_code có thể trống HOẶC sai (Swagger hay điền "string") → tự suy từ toạ độ.
+        # Chỉ nhận mã từ dữ liệu dân cư đã xác minh; còn lại point-in-polygon, không nearest.
         commune = get_commune(commune_code) if commune_code else None
         if commune is None:
-            commune = nearest_commune(data.lat, data.lon)
-        shelter = shelters.nearest(commune.code, data.lat, data.lon)
+            commune = resolve_commune_from_coordinates(data.lat, data.lon)
+        shelter = shelters.nearest(commune.code, data.lat, data.lon) if commune else None
 
         rid = "sos_" + uuid.uuid4().hex[:10]
         req = RescueRequest(
             id=rid, lat=data.lat, lon=data.lon, danger_type=data.danger_type,
             num_people=data.num_people, full_name=full_name, phone=phone, cccd=data.cccd,
-            note=data.note, commune_code=commune.code, commune_name=commune.name,
+            note=data.note, commune_code=commune.code if commune else None, commune_name=commune.name if commune else None,
+            mapping_status="MAPPED" if commune else "UNMAPPED",
             priority=priority_of(data.danger_type), status=RescueStatus.pending,
             nearest_shelter_name=shelter.name if shelter else None,
-            created_at=_now(), updated_at=_now(),
+            created_at=_now(), updated_at=_now(), audit=[{"step":"create","detail":"Tạo SOS; đã mapping xã" if commune else "Tạo SOS; chưa xác định được xã"}],
         )
         self._reqs[rid] = req
         supabase_repo.mirror(supabase_repo.push_rescue_requests, [req])
@@ -101,6 +103,9 @@ class RescueStore:
         # ưu tiên cao + mới nhất lên trước
         order = {"critical": 0, "high": 1, "medium": 2}
         return sorted(items, key=lambda r: (order.get(r.priority, 3), r.created_at))
+
+    def list_for_scope(self, commune_codes: set[str], include_unmapped: bool = False) -> list[RescueRequest]:
+        return [request for request in self.list_requests() if request.commune_code in commune_codes or (include_unmapped and request.commune_code is None)]
 
     def get(self, rid: str) -> RescueRequest | None:
         return self._reqs.get(rid)
@@ -122,16 +127,21 @@ class RescueStore:
         req.eta_min = max(1, round(dist / _AVG_SPEED_KMH * 60))
         req.status = RescueStatus.dispatched
         req.updated_at = _now()
+        req.audit.append({"step": "dispatch", "detail": f"Cử {team.name}"})
         supabase_repo.mirror(supabase_repo.push_rescue_requests, [req])
         supabase_repo.mirror(supabase_repo.push_rescue_teams, [team])
         return req
 
-    def update_status(self, rid: str, status: RescueStatus) -> RescueRequest | None:
+    def update_status(self, rid: str, status: RescueStatus, note: str | None = None) -> RescueRequest | None:
         req = self._reqs.get(rid)
         if req is None:
             return None
+        allowed = {RescueStatus.pending: {RescueStatus.acknowledged, RescueStatus.cancelled}, RescueStatus.acknowledged: {RescueStatus.dispatched, RescueStatus.cancelled}, RescueStatus.dispatched: {RescueStatus.resolved}}
+        if status not in allowed.get(req.status, set()):
+            raise ValueError(f"Không thể chuyển SOS từ {req.status.value} sang {status.value}")
         req.status = status
         req.updated_at = _now()
+        req.audit.append({"step": "status", "detail": f"Chuyển sang {status.value}" + (f": {note}" if note else "")})
         # Cứu xong / huỷ → giải phóng đội cứu hộ
         if status in (RescueStatus.resolved, RescueStatus.cancelled) and req.assigned_team_id:
             team = self._teams.get(req.assigned_team_id)
