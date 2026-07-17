@@ -32,16 +32,13 @@ def enabled() -> bool:
     return s.db_backend.lower() == "supabase" and bool(s.supabase_url and s.supabase_key)
 
 
-def _rows(models: list[Any]) -> list[dict]:
-    """Pydantic → dict JSON-safe (enum → value)."""
-    return [m.model_dump(mode="json") for m in models]
-
-
-def _upsert(table: str, models: list[Any], on_conflict: str) -> int:
+def _upsert(table: str, models: list[Any], on_conflict: str,
+            exclude: set[str] | None = None) -> int:
     client = _client()
     if client is None or not models:
         return 0
-    client.table(table).upsert(_rows(models), on_conflict=on_conflict).execute()
+    rows = [m.model_dump(mode="json", exclude=exclude) for m in models]
+    client.table(table).upsert(rows, on_conflict=on_conflict).execute()
     return len(models)
 
 
@@ -55,7 +52,8 @@ def push_citizens(citizens: list[Any]) -> int:
 
 
 def push_shelters(shelters: list[Any]) -> int:
-    return _upsert("shelters", shelters, on_conflict="id")
+    # distance_km là giá trị tính lúc truy vấn, KHÔNG phải cột trong DB.
+    return _upsert("shelters", shelters, on_conflict="id", exclude={"distance_km"})
 
 
 def push_notifications(notifs: list[Any]) -> int:

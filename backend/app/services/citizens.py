@@ -14,14 +14,15 @@ class CitizenStore:
     def __init__(self) -> None:
         self._by_cccd: dict[str, Citizen] = {}
 
-    def upsert(self, data: CitizenCreate) -> Citizen:
+    def upsert(self, data: CitizenCreate, mirror: bool = True) -> Citizen:
         citizen = Citizen(
             id=data.cccd,
             preferred_lang=lang_from_ethnicity(data.ethnicity),
             **data.model_dump(),
         )
         self._by_cccd[data.cccd] = citizen
-        supabase_repo.mirror(supabase_repo.push_citizens, [citizen])  # tự đẩy lên Supabase nếu bật
+        if mirror:  # seed hàng loạt truyền mirror=False rồi đẩy 1 lần cho nhanh
+            supabase_repo.mirror(supabase_repo.push_citizens, [citizen])
         return citizen
 
     def get(self, cccd: str) -> Citizen | None:

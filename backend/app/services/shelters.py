@@ -1,7 +1,8 @@
-"""DB — Nơi trú ẩn an toàn theo xã (in-memory + seed).
+"""Nơi trú ẩn an toàn theo xã (in-memory) — SINH TỰ ĐỘNG từ danh mục 45 xã.
 
-`nearest()` tìm điểm trú ẩn gần nhất cho 1 toạ độ (haversine) — để gắn vào bản tin
-và tin nhắn gửi từng người dân.
+Mỗi xã có sẵn 2 điểm (trường học + nhà văn hoá); xã nhạy cảm sạt lở cao có thêm
+1 'điểm cao'. Toạ độ lệch nhẹ quanh tâm xã để `nearest()` (haversine) có ý nghĩa.
+Sản phẩm thật thay bằng phương án sơ tán chính thức của từng xã.
 """
 
 from __future__ import annotations
@@ -10,39 +11,36 @@ import uuid
 
 from app.schemas.shelter import Shelter, ShelterCreate, ShelterKind
 from app.services import supabase_repo
-from app.services.geo_data import haversine_km
+from app.services.geo_data import all_communes, haversine_km, short_name
 
-# Seed điểm trú ẩn mẫu (địa chỉ/toạ độ minh hoạ). Thật: lấy từ phương án sơ tán của xã.
-_SEED: list[dict] = [
-    dict(commune_code="muong_pon", name="Trường PTDTBT Tiểu học Mường Pồn",
-         address="Trung tâm xã Mường Pồn, huyện Điện Biên", lat=21.5335, lon=103.0790,
-         capacity=300, kind=ShelterKind.school, contact_phone="0215380xxxx"),
-    dict(commune_code="muong_pon", name="Nhà văn hoá bản Nậm Pồn",
-         address="Bản Nậm Pồn, xã Mường Pồn", lat=21.5280, lon=103.0835,
-         capacity=120, kind=ShelterKind.community_hall, contact_phone=None),
-    dict(commune_code="muong_pon", name="Điểm cao UBND xã (khu đồi sau trụ sở)",
-         address="UBND xã Mường Pồn", lat=21.5312, lon=103.0808,
-         capacity=200, kind=ShelterKind.high_ground, contact_phone=None),
-    dict(commune_code="tua_chua", name="Trường THPT Tủa Chùa",
-         address="TT Tủa Chùa, huyện Tủa Chùa", lat=21.9915, lon=103.3585,
-         capacity=400, kind=ShelterKind.school, contact_phone=None),
-    dict(commune_code="tua_chua", name="Nhà văn hoá huyện Tủa Chùa",
-         address="TT Tủa Chùa", lat=21.9885, lon=103.3620,
-         capacity=250, kind=ShelterKind.community_hall, contact_phone=None),
-    dict(commune_code="nam_po", name="Trạm y tế xã Nậm Pồ",
-         address="Trung tâm xã Nậm Pồ", lat=21.9905, lon=102.7215,
-         capacity=80, kind=ShelterKind.health_station, contact_phone=None),
-    dict(commune_code="tuan_giao", name="UBND thị trấn Tuần Giáo",
-         address="TT Tuần Giáo", lat=21.5815, lon=103.4185,
-         capacity=180, kind=ShelterKind.commune_office, contact_phone=None),
-]
+
+def _seed_for(commune) -> list[ShelterCreate]:
+    s = short_name(commune.name)
+    cap = max(120, min(600, commune.population // 12))
+    items = [
+        ShelterCreate(commune_code=commune.code, name=f"Trường PTDTBT {s}",
+                      address=f"Trung tâm {commune.name}", lat=commune.lat, lon=commune.lon,
+                      capacity=cap, kind=ShelterKind.school),
+        ShelterCreate(commune_code=commune.code, name=f"Nhà văn hoá {s}",
+                      address=f"Khu trung tâm, {commune.name}",
+                      lat=round(commune.lat + 0.006, 6), lon=round(commune.lon + 0.004, 6),
+                      capacity=max(80, cap // 2), kind=ShelterKind.community_hall),
+    ]
+    if commune.landslide_susceptibility == "high":
+        items.append(ShelterCreate(
+            commune_code=commune.code, name=f"Điểm cao an toàn {s}",
+            address=f"Khu đồi cao, {commune.name}",
+            lat=round(commune.lat - 0.005, 6), lon=round(commune.lon + 0.007, 6),
+            capacity=200, kind=ShelterKind.high_ground))
+    return items
 
 
 class ShelterStore:
     def __init__(self) -> None:
         self._by_id: dict[str, Shelter] = {}
-        for s in _SEED:
-            self._add(ShelterCreate(**s))  # seed KHÔNG mirror (tránh gọi mạng lúc import)
+        for commune in all_communes():
+            for data in _seed_for(commune):
+                self._add(data)
 
     def _add(self, data: ShelterCreate) -> Shelter:
         sid = "shl_" + uuid.uuid4().hex[:8]
