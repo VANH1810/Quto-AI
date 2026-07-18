@@ -28,12 +28,10 @@ async def send(channel: Channel, commune_code: str, target: str,
             status=DispatchStatus.failed,
             detail="1 cụm loa ngoại tuyến (mất kết nối 3G/4G) — cần thử lại hoặc đến bản.",
         )
-    # SMS/ZNS: giả lập rớt ~5% (tất định theo số lượng).
     delivered = recipients if channel == Channel.loudspeaker else max(0, recipients - recipients // 20)
-    status = DispatchStatus.ok if delivered == recipients else DispatchStatus.ok
     return DispatchRecord(
         channel=channel.value, target=target, recipients=recipients,
-        delivered=delivered, status=status,
+        delivered=delivered, status=DispatchStatus.ok,
         detail="Đã phát loa" if channel == Channel.loudspeaker else f"Đã gửi {delivered}/{recipients}",
     )
 

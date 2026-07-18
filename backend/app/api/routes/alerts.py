@@ -23,10 +23,10 @@ router = APIRouter(prefix="/api/v1/alerts", tags=["5 · Cảnh báo (AI Agent)"]
 async def scan_commune(code: str, days: int = 3) -> list[Alert]:
     """Chạy dự báo → risk engine → agent sinh bản tin cho mỗi hazard.
 
-    **Input**: path `code` (mã xã, vd `muong_pon`); query `days` (1–7, mặc định 3). Cần token.
+    **Input**: path `code` (mã xã); query `days` (1–7, mặc định 3). Cần token.
 
-    **Output**: mảng `Alert` vừa tạo — mỗi cái có `event` (hazard, risk_level, provenance),
-    `bulletins` (vi/tai/hmn), `status` (`pending_approval` nếu cấp ≥3, ngược lại `approved`).
+    **Output**: mảng `Alert` vừa tạo — mỗi cái có `event`, `bulletins` (vi/tai/hmn),
+    `status` (`pending_approval` nếu cấp ≥3, ngược lại `approved`).
     """
     commune = get_commune(code)
     if commune is None:
@@ -44,8 +44,7 @@ def list_alerts() -> list[Alert]:
 
 @router.get("/{alert_id}", response_model=Alert, summary="5.3 · Chi tiết cảnh báo + nhật ký")
 def get_alert(alert_id: str) -> Alert:
-    """**Input**: path `alert_id`. **Output**: 1 `Alert` đầy đủ (bulletins, dispatches, audit)
-    hoặc 404 nếu không tồn tại."""
+    """**Input**: path `alert_id`. **Output**: 1 `Alert` (bulletins, dispatches, audit) hoặc 404."""
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")
@@ -58,11 +57,10 @@ async def approve(alert_id: str, body: ApproveRequest,
                   admin: AdminPublic = Depends(get_current_admin)) -> Alert:
     """Người trực duyệt bản tin cấp cao rồi gửi, hoặc bác bỏ.
 
-    **Input**: path `alert_id`; body `ApproveRequest` = `{ approve: bool, note?: str,
-    edited_body_vi?: str }` (sửa lại nội dung tiếng Việt trước khi gửi nếu cần). Cần token.
+    **Input**: path `alert_id`; body `ApproveRequest` = `{ approve, note?, edited_body_vi? }`.
 
-    **Output**: `Alert` sau xử lý — nếu duyệt: có `dispatches` (Zalo/SMS/loa) + sinh tin nhắn
-    cá nhân (DB3); `status` = `sent` / `partial_failed`. Nếu bác bỏ: `status=rejected`.
+    **Output**: `Alert` sau xử lý — nếu duyệt: có `dispatches` + sinh tin nhắn cá nhân (DB3),
+    `status` = `sent`/`partial_failed`. Nếu bác bỏ: `status=rejected`.
     """
     a = alerts_store.get(alert_id)
     if a is None:
@@ -72,14 +70,10 @@ async def approve(alert_id: str, body: ApproveRequest,
     return await orchestrator.reject(a, admin.id, body.note)
 
 
-@router.post("/{alert_id}/retry", response_model=Alert,
-             summary="5.5 · Gửi lại các kênh bị lỗi")
+@router.post("/{alert_id}/retry", response_model=Alert, summary="5.5 · Gửi lại các kênh bị lỗi")
 async def retry(alert_id: str) -> Alert:
-    """Thử gửi lại các kênh đang `failed` và cập nhật lại trạng thái tin nhắn cá nhân.
-
-    **Input**: path `alert_id` (cần token). **Output**: `Alert` với `dispatches` đã cập nhật;
-    `status` = `sent` nếu hết lỗi, ngược lại `partial_failed`.
-    """
+    """**Input**: path `alert_id` (cần token). **Output**: `Alert` với `dispatches` cập nhật;
+    `status` = `sent` nếu hết lỗi, ngược lại `partial_failed`."""
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")

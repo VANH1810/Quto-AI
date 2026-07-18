@@ -1,0 +1,91 @@
+# Backend AI TỰ CHỨA (agent_worker) — build CHỈ từ agent_worker/ (context: .).
+#
+#   cd agent_worker && docker compose up --build
+#     Swagger (API AI): http://localhost:8100/docs   (submit/poll/approve + seed + dữ liệu)
+#     RabbitMQ UI      : http://localhost:15672  (guest/guest)
+#
+# 4 process ứng dụng (chung 1 image agent_worker):
+#   agent-api      : FastAPI + Swagger (cổng 8100)
+#   agent-worker   : Celery worker chạy graph LLM (queue 'agent')
+#   dispatch-worker: Celery worker gửi đa kênh (queue 'dispatch')
+# Dữ liệu (dân/cán bộ/trú ẩn/notifications) nằm trong Postgres của chính stack này.
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports: ["5672:5672", "15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: quto
+      POSTGRES_PASSWORD: quto
+      POSTGRES_DB: quto
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quto"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # API + Swagger của backend AI (control-plane + seed + tra cứu dữ liệu) — cổng 8100.
+  agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["uvicorn", "agent_worker.api:app", "--host", "0.0.0.0", "--port", "8100"]
+    environment: &worker_env
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://quto:quto@postgres:5432/quto
+      LLM_PROVIDER: mock
+      HUMAN_APPROVAL_MIN_LEVEL: "3"
+      ZALO_PROVIDER: mock
+    ports: ["8100:8100"]
+    depends_on:
+      rabbitmq: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+  # Celery worker: chạy graph (LLM). Queue 'agent'.
+  agent-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "agent", "--loglevel=info", "--concurrency=4"]
+    environment: *worker_env
+    depends_on:
+      rabbitmq: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+  # Celery worker: gửi đa kênh (Zalo/SMS/loa). Queue 'dispatch'.
+  dispatch-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "dispatch", "--loglevel=info", "--concurrency=4"]
+    environment: *worker_env
+    depends_on:
+      rabbitmq: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+volumes:
+  pgdata:

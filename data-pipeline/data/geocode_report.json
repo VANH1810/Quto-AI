@@ -1,0 +1,416 @@
+{
+  "source": "Open-Meteo Geocoding API (GeoNames, CC BY 4.0)",
+  "summary": {
+    "high": 5,
+    "medium": 13,
+    "low": 27,
+    "total": 45
+  },
+  "items": [
+    {
+      "code": "muong_nhe",
+      "name": "Xã Mường Nhé",
+      "confidence": "medium",
+      "distance_km_vs_approx": 1.9,
+      "matched": "Mường Nhé",
+      "admin": "Huyện Mường Nhé, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "sin_thau",
+      "name": "Xã Sín Thầu",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": "_ssl.c:1063: The handshake operation timed out"
+    },
+    {
+      "code": "muong_toong",
+      "name": "Xã Mường Toong",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "nam_ke",
+      "name": "Xã Nậm Kè",
+      "confidence": "medium",
+      "distance_km_vs_approx": 8.5,
+      "matched": "Nậm Kè",
+      "admin": "Huyện Mường Nhé, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "quang_lam",
+      "name": "Xã Quảng Lâm",
+      "confidence": "medium",
+      "distance_km_vs_approx": 13.6,
+      "matched": "Quảng Lâm",
+      "admin": "Huyện Mường Nhé, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "na_hy",
+      "name": "Xã Nà Hỳ",
+      "confidence": "low",
+      "distance_km_vs_approx": 325.6,
+      "matched": "Na Hỷ",
+      "admin": "Huyện Tương Dương, Tỉnh Nghệ An",
+      "error": null
+    },
+    {
+      "code": "na_bung",
+      "name": "Xã Nà Bủng",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "cha_to",
+      "name": "Xã Chà Tở",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "si_pa_phin",
+      "name": "Xã Si Pa Phìn",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": "_ssl.c:1063: The handshake operation timed out"
+    },
+    {
+      "code": "muong_cha",
+      "name": "Xã Mường Chà",
+      "confidence": "medium",
+      "distance_km_vs_approx": 9.8,
+      "matched": "Thị Trấn Mường Chà",
+      "admin": "Huyện Mường Chà, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "na_sang",
+      "name": "Xã Na Sang",
+      "confidence": "low",
+      "distance_km_vs_approx": 60.9,
+      "matched": "Na Sang",
+      "admin": "Huyện Điện Biên, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "muong_tung",
+      "name": "Xã Mường Tùng",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "pa_ham",
+      "name": "Xã Pa Ham",
+      "confidence": "medium",
+      "distance_km_vs_approx": 2.7,
+      "matched": "Pa Ham",
+      "admin": "Huyện Mường Chà, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "nam_nen",
+      "name": "Xã Nậm Nèn",
+      "confidence": "medium",
+      "distance_km_vs_approx": 30.8,
+      "matched": "Bản Nam Nen",
+      "admin": "Huyện Mường Chà, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "muong_pon",
+      "name": "Xã Mường Pồn",
+      "confidence": "high",
+      "distance_km_vs_approx": 7.1,
+      "matched": "Mường Pồn",
+      "admin": "Huyện Điện Biên, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "tua_chua",
+      "name": "Xã Tủa Chùa",
+      "confidence": "medium",
+      "distance_km_vs_approx": 14.4,
+      "matched": "Tủa Chùa",
+      "admin": "Huyện Mường Chà, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "sin_chai",
+      "name": "Xã Sín Chải",
+      "confidence": "medium",
+      "distance_km_vs_approx": 34.6,
+      "matched": "Sin Chải",
+      "admin": "Huyện Sìn Hồ, Lai Châu",
+      "error": null
+    },
+    {
+      "code": "sinh_phinh",
+      "name": "Xã Sính Phình",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "tua_thang",
+      "name": "Xã Tủa Thàng",
+      "confidence": "medium",
+      "distance_km_vs_approx": 2.9,
+      "matched": "Tủa Thàng",
+      "admin": "Huyện Tủa Chùa, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "sang_nhe",
+      "name": "Xã Sáng Nhè",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "tuan_giao",
+      "name": "Xã Tuần Giáo",
+      "confidence": "medium",
+      "distance_km_vs_approx": 0.5,
+      "matched": "Tuần Giáo",
+      "admin": "Huyện Tuần Giáo, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "quai_to",
+      "name": "Xã Quài Tở",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "muong_mun",
+      "name": "Xã Mường Mùn",
+      "confidence": "low",
+      "distance_km_vs_approx": 239.7,
+      "matched": "Mương Mung",
+      "admin": "Huyện Kim Bôi, Phu Tho",
+      "error": null
+    },
+    {
+      "code": "pu_nhung",
+      "name": "Xã Pú Nhung",
+      "confidence": "medium",
+      "distance_km_vs_approx": 20.9,
+      "matched": "Pú Nhung Họ",
+      "admin": "Huyện Tuần Giáo, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "chieng_sinh",
+      "name": "Xã Chiềng Sinh",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "muong_ang",
+      "name": "Xã Mường Ảng",
+      "confidence": "medium",
+      "distance_km_vs_approx": 9.2,
+      "matched": "Mương Ang",
+      "admin": "Huyện Mường Ảng, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "na_tau",
+      "name": "Xã Nà Tấu",
+      "confidence": "high",
+      "distance_km_vs_approx": 7.1,
+      "matched": "Nà Tấu",
+      "admin": "Huyện Điện Biên, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "bung_lao",
+      "name": "Xã Búng Lao",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "muong_lan",
+      "name": "Xã Mường Lạn",
+      "confidence": "low",
+      "distance_km_vs_approx": 88.0,
+      "matched": "Muong Lan",
+      "admin": "Huyen Sop Cop, Sơn La",
+      "error": null
+    },
+    {
+      "code": "muong_phang",
+      "name": "Xã Mường Phăng",
+      "confidence": "high",
+      "distance_km_vs_approx": 3.3,
+      "matched": "Muong Phan",
+      "admin": "Huyện Điện Biên, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "thanh_nua",
+      "name": "Xã Thanh Nưa",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "thanh_an",
+      "name": "Xã Thanh An",
+      "confidence": "low",
+      "distance_km_vs_approx": 357.0,
+      "matched": "Thành An",
+      "admin": "Huyện Nghĩa Hưng, Ninh Binh",
+      "error": null
+    },
+    {
+      "code": "thanh_yen",
+      "name": "Xã Thanh Yên",
+      "confidence": "low",
+      "distance_km_vs_approx": 210.9,
+      "matched": "Thành Yên",
+      "admin": "Huyện Quan Hóa, Thanh Hóa",
+      "error": null
+    },
+    {
+      "code": "sam_mun",
+      "name": "Xã Sam Mứn",
+      "confidence": "high",
+      "distance_km_vs_approx": 4.1,
+      "matched": "Bản Sam Moun",
+      "admin": "Huyện Điện Biên, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "nua_ngam",
+      "name": "Xã Núa Ngam",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "muong_nha",
+      "name": "Xã Mường Nhà",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "na_son",
+      "name": "Xã Na Son",
+      "confidence": "low",
+      "distance_km_vs_approx": 85.3,
+      "matched": "Na Sản",
+      "admin": "Huyện Mai Sơn, Sơn La",
+      "error": null
+    },
+    {
+      "code": "xa_dung",
+      "name": "Xã Xa Dung",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "pu_nhi",
+      "name": "Xã Pu Nhi",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "muong_luan",
+      "name": "Xã Mường Luân",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "tia_dinh",
+      "name": "Xã Tia Dình",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "phinh_giang",
+      "name": "Xã Phình Giàng",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    },
+    {
+      "code": "muong_lay",
+      "name": "Phường Mường Lay",
+      "confidence": "medium",
+      "distance_km_vs_approx": 3.8,
+      "matched": "Mường Lay",
+      "admin": "Thị Xã Mưòng Lay, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "dien_bien_phu",
+      "name": "Phường Điện Biên Phủ",
+      "confidence": "high",
+      "distance_km_vs_approx": 0.6,
+      "matched": "Điện Biên Phủ",
+      "admin": "Thành Phố Điện Biên Phủ, Tỉnh Ðiện Biên",
+      "error": null
+    },
+    {
+      "code": "muong_thanh",
+      "name": "Phường Mường Thanh",
+      "confidence": "low",
+      "distance_km_vs_approx": null,
+      "matched": null,
+      "admin": null,
+      "error": null
+    }
+  ]
+}

@@ -13,6 +13,7 @@ from app.services.admins import admins
 from app.services.citizens import citizens
 from app.services.geo_data import all_communes, get_commune
 from app.services.notifications import notifications
+from app.services.rescue import rescue
 from app.services.shelters import shelters
 
 router = APIRouter(prefix="/api/v1/dev", tags=["6 · Demo — dữ liệu mẫu"])
@@ -49,6 +50,7 @@ def seed_people(per_commune: int = 10) -> dict:
                 "admins": supabase_repo.push_admins(admins.all()),
                 "citizens": supabase_repo.push_citizens(citizens.all()),
                 "shelters": supabase_repo.push_shelters(shelters.all()),
+                "rescue_teams": supabase_repo.push_rescue_teams(rescue.teams()),
             }
         except Exception as e:  # noqa: BLE001
             pushed = {"error": str(e)}
@@ -113,6 +115,7 @@ def supabase_push() -> dict:
             "admins": supabase_repo.push_admins(admins.all()),
             "citizens": supabase_repo.push_citizens(citizens.all()),
             "shelters": supabase_repo.push_shelters(shelters.all()),
+            "rescue_teams": supabase_repo.push_rescue_teams(rescue.teams()),
             "notifications": supabase_repo.push_notifications(notifications.all()),
         }
     except Exception as e:  # noqa: BLE001

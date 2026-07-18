@@ -9,7 +9,7 @@ const hazardTemplates: Record<HazardType, AlertTemplate> = {
   flash_flood: {
     hazardLabel: "Lũ quét",
     headline: "Cảnh báo nước suối lên nhanh sau mưa lớn",
-    detail: "Nguy cơ lũ quét tại các suối nhỏ, ngầm tràn và khu dân cư thấp trong 1–3 giờ tới.",
+    detail: "Nguy cơ lũ quét tại các suối nhỏ, ngầm tràn và khu dân cư thấp trong 1-3 giờ tới.",
     recommendedActions: ["Không đi qua ngầm tràn", "Di chuyển lên điểm cao khi có hướng dẫn"],
   },
   landslide: {

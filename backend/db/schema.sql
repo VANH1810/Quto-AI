@@ -96,6 +96,78 @@ create table if not exists notifications (
 create index if not exists idx_notif_alert on notifications(alert_id);
 create index if not exists idx_notif_cccd  on notifications(cccd);
 
+-- 8) Đội cứu hộ
+create table if not exists rescue_teams (
+  id                 text primary key,
+  name               text not null,
+  commune_code       text,
+  base_lat           double precision,
+  base_lon           double precision,
+  phone              text,
+  capacity           integer default 6,
+  status             text default 'available',  -- available | busy
+  current_request_id text
+);
+
+-- 9) Tin cứu hộ SOS (dân gửi vị trí nguy hiểm)
+create table if not exists rescue_requests (
+  id                   text primary key,
+  lat                  double precision,
+  lon                  double precision,
+  danger_type          text,   -- flood_trapped | landslide_buried | injured | isolated | missing | other
+  num_people           integer default 1,
+  full_name            text,
+  phone                text,
+  cccd                 text,
+  note                 text,
+  commune_code         text,
+  commune_name         text,
+  priority             text,   -- critical | high | medium
+  status               text,   -- pending | acknowledged | dispatched | resolved | cancelled
+  assigned_team_id     text,
+  assigned_team_name   text,
+  distance_km          double precision,
+  eta_min              integer,
+  nearest_shelter_name text,
+  created_at           text,
+  updated_at           text
+);
+create index if not exists idx_rescue_status on rescue_requests(status);
+create index if not exists idx_rescue_commune on rescue_requests(commune_code);
+
+-- 10) Loa truyền thanh IP
+create table if not exists loudspeakers (
+  id            text primary key,
+  name          text not null,
+  commune_code  text,
+  location      text,
+  lat           double precision,
+  lon           double precision,
+  langs         text[] default '{}',
+  status        text default 'online',   -- online | offline
+  last_seen     text
+);
+create index if not exists idx_speaker_commune on loudspeakers(commune_code);
+
+-- 11) Nhật ký gửi tin (Zalo/SMS/loa)
+create table if not exists interaction_logs (
+  id            text primary key,
+  ts            text,
+  channel       text,   -- zalo_zns | sms | loudspeaker
+  target        text,
+  commune_code  text,
+  lang          text,
+  recipients    integer default 0,
+  delivered     integer default 0,
+  status        text,   -- ok | partial | failed
+  detail        text,
+  alert_id      text,
+  ref_id        text,
+  source        text default 'log'
+);
+create index if not exists idx_itx_commune on interaction_logs(commune_code);
+create index if not exists idx_itx_channel on interaction_logs(channel);
+
 
 -- Gợi ý bảo mật: bật RLS + policy phù hợp trước khi lên production.
 -- alter table citizens enable row level security; (rồi tạo policy theo vai trò)

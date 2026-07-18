@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Nguồn thời tiết: openmeteo | mock
     weather_provider: str = "openmeteo"
     openmeteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_timeout_seconds: float = 12.0
+    weather_cache_ttl_seconds: int = 600
+    commune_overview_cache_ttl_seconds: int = 300
 
     # LLM: mock | openai | gemini | local
     llm_provider: str = "mock"
@@ -41,6 +44,14 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-doi-truoc-khi-len-that"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 240
+
+    # Frontend public map và admin console chạy khác port khi phát triển local.
+    # Chuỗi CSV giúp cấu hình .env đơn giản, không cần JSON list của Pydantic.
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

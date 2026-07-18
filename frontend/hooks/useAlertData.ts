@@ -10,12 +10,20 @@ export function useAlertData() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let active = true;
-    alertService.getDashboardData()
-      .then((result) => active && setData(result))
-      .catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : "Không thể tải dữ liệu"))
-      .finally(() => active && setIsLoading(false));
-    return () => { active = false; };
+    const controller = new AbortController();
+
+    alertService.getDashboardData(controller.signal)
+      .then(setData)
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(reason instanceof Error ? reason.message : "Không thể tải dữ liệu");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
+
+    return () => controller.abort();
   }, []);
 
   return { data, error, isLoading };

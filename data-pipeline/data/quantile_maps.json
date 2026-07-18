@@ -1,0 +1,13 @@
+{
+  "_comment": "Bias correction quantile-map theo xã. Mỗi biến: cặp phân vị model_q -> obs_q (nội suy tuyến tính). Xã/biến KHÔNG có ở đây = giữ nguyên (identity). Dưới đây là 3 ví dụ MINH HOẠ (vùng cao Open-Meteo hay dự báo hụt mưa) — thay bằng số học từ trạm KTTV Điện Biên khi có (dùng train_quantile_map).",
+  "muong_pon": {
+    "precipitation_sum": { "model_q": [0, 10, 30, 60, 120, 200], "obs_q": [0, 13, 40, 78, 150, 245] }
+  },
+  "tua_chua": {
+    "precipitation_sum": { "model_q": [0, 10, 30, 60, 120, 200], "obs_q": [0, 14, 44, 85, 160, 260] }
+  },
+  "sin_thau": {
+    "precipitation_sum": { "model_q": [0, 10, 30, 60, 120, 200], "obs_q": [0, 15, 46, 90, 170, 275] },
+    "temperature_2m_min": { "model_q": [-2, 5, 13, 20, 30], "obs_q": [-4, 3, 11, 18, 28] }
+  }
+}

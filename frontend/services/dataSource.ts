@@ -1,16 +1,19 @@
 import { createMockAlerts } from "@/data/mockAlerts";
-import { mockShelters } from "@/data/mockShelters";
+import { shelters as verifiedShelters } from "@/data/shelters";
+import { getApiBaseUrl } from "@/services/apiConfig";
 import type { CommuneAlert, CommuneCenter, CommuneGeoJSON, DashboardData, HazardType, ProvinceGeoJSON, RiskLevel, Shelter } from "@/types";
+import { dispersedRepresentativePointsFromFeature, representativePointFromFeature } from "@/utils/geo";
 import { HAZARD_META } from "@/utils/risk";
+import { mockShelterCapacity } from "@/utils/shelter";
 
 export interface AlertDataSource {
-  getDashboardData(): Promise<DashboardData>;
+  getDashboardData(signal?: AbortSignal): Promise<DashboardData>;
 }
 
-async function getBoundaries(): Promise<{ boundaries: CommuneGeoJSON; provinceBoundary: ProvinceGeoJSON }> {
+async function getBoundaries(signal?: AbortSignal): Promise<{ boundaries: CommuneGeoJSON; provinceBoundary: ProvinceGeoJSON }> {
   const [communeResponse, provinceResponse] = await Promise.all([
-    fetch("/data/dien-bien-communes.geojson"),
-    fetch("/data/dien-bien-province.geojson"),
+    fetch("/data/dien-bien-communes.geojson", { cache: "force-cache", signal }),
+    fetch("/data/dien-bien-province.geojson", { cache: "force-cache", signal }),
   ]);
   if (!communeResponse.ok || !provinceResponse.ok) throw new Error("Không thể tải ranh giới hành chính Điện Biên");
   return {
@@ -20,22 +23,86 @@ async function getBoundaries(): Promise<{ boundaries: CommuneGeoJSON; provinceBo
 }
 
 function centersFromBoundaries(boundaries: CommuneGeoJSON): CommuneCenter[] {
-  return boundaries.features.map((feature, index) => ({
-    code: feature.properties.code,
-    name: feature.properties.name,
-    district: feature.properties.district,
-    lat: feature.properties.centerLat ?? 21.68,
-    lon: feature.properties.centerLon ?? 103,
-    population: 4800 + ((index * 1379) % 18500),
-  }));
+  return boundaries.features.map((feature, index) => {
+    const point = representativePointFromFeature(feature);
+    return {
+      code: feature.properties.code,
+      name: feature.properties.name,
+      district: feature.properties.district,
+      lat: point.lat,
+      lon: point.lon,
+      population: 4800 + ((index * 1379) % 18500),
+    };
+  });
+}
+
+function ensureShelterCoverage(boundaries: CommuneGeoJSON, sourceShelters: Shelter[]): Shelter[] {
+  const sheltersByCommune = new Map<string, Shelter[]>();
+  for (const shelter of sourceShelters) {
+    const communeShelters = sheltersByCommune.get(shelter.communeCode);
+    if (communeShelters) communeShelters.push(shelter);
+    else sheltersByCommune.set(shelter.communeCode, [shelter]);
+  }
+
+  return boundaries.features.flatMap((feature) => {
+    const communeCode = feature.properties.code;
+    const communeName = feature.properties.name;
+    const existing = (sheltersByCommune.get(communeCode) ?? []).slice(0, 3);
+    const missingCount = Math.max(0, 2 - existing.length);
+    if (missingCount === 0) return existing;
+
+    const fallbackPoints = dispersedRepresentativePointsFromFeature(
+      feature,
+      missingCount,
+      existing.map((shelter) => ({ lat: shelter.latitude, lon: shelter.longitude })),
+    );
+    const communeCenter = representativePointFromFeature(feature);
+
+    const fallbacks: Shelter[] = fallbackPoints.map((point, index) => {
+      const longitudeDifference = point.lon - communeCenter.lon;
+      const latitudeDifference = point.lat - communeCenter.lat;
+      const areaLabel = Math.max(Math.abs(longitudeDifference), Math.abs(latitudeDifference)) < 0.005
+        ? "khu trung tâm"
+        : Math.abs(longitudeDifference) >= Math.abs(latitudeDifference)
+          ? longitudeDifference < 0 ? "phía tây" : "phía đông"
+          : latitudeDifference < 0 ? "phía nam" : "phía bắc";
+      const type: Shelter["type"] = index % 2 === 0 ? "high_ground" : "community_hall";
+      return {
+        id: `fallback-${communeCode}-${index + 1}`,
+        communeCode,
+        communeName,
+        name: index % 2 === 0 ? `Điểm tập kết công cộng ${communeName}` : `Khu sơ tán cộng đồng ${communeName}`,
+        address: `Khu vực ${areaLabel}, ${communeName}, tỉnh Điện Biên`,
+        latitude: point.lat,
+        longitude: point.lon,
+        lat: point.lat,
+        lon: point.lon,
+        type,
+        kind: type,
+        capacity: mockShelterCapacity(),
+        capacityStatus: "estimated",
+        mock: true,
+        coordinateStatus: "mock",
+        sourceLabel: "Điểm đại diện nội bộ từ ranh giới GeoJSON",
+        sourceUrl: null,
+      };
+    });
+
+    return [...existing, ...fallbacks];
+  });
 }
 
 class MockAlertDataSource implements AlertDataSource {
-  async getDashboardData(): Promise<DashboardData> {
-    const { boundaries, provinceBoundary } = await getBoundaries();
+  async getDashboardData(signal?: AbortSignal): Promise<DashboardData> {
+    const { boundaries, provinceBoundary } = await getBoundaries(signal);
     const communeCenters = centersFromBoundaries(boundaries);
-    await new Promise((resolve) => setTimeout(resolve, 220));
-    return { provinceBoundary, boundaries, alerts: createMockAlerts(communeCenters), shelters: mockShelters, communeCenters };
+    return {
+      provinceBoundary,
+      boundaries,
+      alerts: createMockAlerts(communeCenters),
+      shelters: ensureShelterCoverage(boundaries, verifiedShelters),
+      communeCenters,
+    };
   }
 }
 
@@ -67,17 +134,22 @@ interface ApiShelter {
   lon: number;
   capacity: number;
   kind: Shelter["kind"];
+  commune_name?: string;
+  coordinate_status?: Shelter["coordinateStatus"];
+  source_label?: string;
+  source_url?: string | null;
+  mock?: boolean;
 }
 
 class BackendAlertDataSource implements AlertDataSource {
   constructor(private readonly baseUrl: string) {}
 
-  async getDashboardData(): Promise<DashboardData> {
+  async getDashboardData(signal?: AbortSignal): Promise<DashboardData> {
     const [boundaryData, riskResponse, communeResponse, shelterResponse] = await Promise.all([
-      getBoundaries(),
-      fetch(`${this.baseUrl}/api/v1/risk-map`),
-      fetch(`${this.baseUrl}/api/v1/communes`),
-      fetch(`${this.baseUrl}/api/v1/shelters`),
+      getBoundaries(signal),
+      fetch(`${this.baseUrl}/api/v1/risk-map`, { signal }),
+      fetch(`${this.baseUrl}/api/v1/communes`, { signal }),
+      fetch(`${this.baseUrl}/api/v1/shelters`, { signal }),
     ]);
     if (!riskResponse.ok || !communeResponse.ok || !shelterResponse.ok) {
       throw new Error("Backend chưa sẵn sàng hoặc trả về dữ liệu không hợp lệ");
@@ -112,23 +184,38 @@ class BackendAlertDataSource implements AlertDataSource {
       lon: commune.lon,
       population: commune.population,
     }));
-    const shelters: Shelter[] = apiShelters.map((shelter) => ({
+    const backendShelters: Shelter[] = apiShelters.map((shelter) => ({
       id: shelter.id,
       communeCode: shelter.commune_code,
+      communeName: shelter.commune_name ?? communes.find((commune) => commune.code === shelter.commune_code)?.name ?? shelter.commune_code,
       name: shelter.name,
       address: shelter.address,
       lat: shelter.lat,
       lon: shelter.lon,
-      capacity: shelter.capacity,
+      latitude: shelter.lat,
+      longitude: shelter.lon,
+      capacity: shelter.capacity > 0 ? shelter.capacity : mockShelterCapacity(),
+      capacityStatus: "estimated",
+      type: shelter.kind,
       kind: shelter.kind,
+      mock: shelter.mock ?? true,
+      coordinateStatus: shelter.coordinate_status ?? "mock",
+      sourceLabel: shelter.source_label ?? "Backend (chưa xác minh nguồn tọa độ)",
+      sourceUrl: shelter.source_url ?? null,
     }));
+    const verifiedIds = new Set(verifiedShelters.map((shelter) => shelter.id));
+    const mergedShelters = [
+      ...verifiedShelters,
+      ...backendShelters.filter((shelter) => !verifiedIds.has(shelter.id)),
+    ];
+    const shelters = ensureShelterCoverage(boundaryData.boundaries, mergedShelters);
     return { ...boundaryData, alerts, shelters, communeCenters };
   }
 }
 
 export function createAlertDataSource(): AlertDataSource {
   if (process.env.NEXT_PUBLIC_DATA_SOURCE === "api") {
-    return new BackendAlertDataSource(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000");
+    return new BackendAlertDataSource(getApiBaseUrl());
   }
   return new MockAlertDataSource();
 }
