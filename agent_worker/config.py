@@ -59,6 +59,7 @@ class WorkerSettings(BaseSettings):
     # Telegram: mock | live. Gửi cảnh báo qua Telegram Bot API.
     telegram_provider: str = "mock"
     telegram_bot_token: str = ""      # từ @BotFather
+    telegram_bot_token_2: str = ""    # bot thứ 2 (dùng cho endpoint demo /demo/telegram-mock)
 
     # Tuning
     prefetch: int = 8

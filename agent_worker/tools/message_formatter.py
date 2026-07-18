@@ -6,7 +6,7 @@ Payload dùng chung cho mọi kênh; dispatch node bọc thành DispatchMessage 
 
 from __future__ import annotations
 
-from agent_worker.shared.common import HAZARD_META
+from agent_worker.shared.common import HAZARD_META, risk_meta
 
 from agent_worker.tools import recommend_tool
 
@@ -40,6 +40,48 @@ def _source_line(top_event: dict) -> str:
     if not src:
         return ""
     return f"\n📡 {src} · {prov.get('observed_at', '')}"
+
+
+def render_alert(commune_name: str, hazard: str, level: int, situation: str,
+                 actions: list[str], shelter: dict | None = None,
+                 source: str = "", date: str = "", lang: str = "vi") -> tuple[str, str]:
+    """Dựng (title, body) bản tin đầy đủ theo template gọn (header emoji + ✅ + 🏠 + 📡).
+
+    Dùng chung cho endpoint demo (Telegram + audio). shelter có thể kèm address/kind/capacity.
+    """
+    hz = HAZARD_META.get(hazard, {"label_vi": hazard, "emoji": "⚠️"})
+    rm = risk_meta(level)
+    header = f"{rm['emoji']}{hz['emoji']} {hz['label_vi'].upper()} {rm['label_vi']} — {commune_name}"
+    lines = [header]
+    if situation:
+        lines.append(situation)
+    if actions:
+        lines.append("Việc cần làm:")
+        lines += [f"✅ {a}" for a in actions]
+    body = "\n".join(lines) + alert_suffix(shelter, source, date, lang)
+    title = f"{rm['emoji']}{hz['emoji']} Cảnh báo {hz['label_vi'].lower()} {rm['label_vi']} — {commune_name}"
+    return title, body
+
+
+def alert_suffix(shelter: dict | None, source: str = "", date: str = "", lang: str = "vi") -> str:
+    """Phần đuôi bản tin: 🏠 trú ẩn (+km/phút/flag) · 📍 địa chỉ · 👥 loại/sức chứa · 📡 nguồn.
+
+    Tách riêng để dùng chung cho bản tin LLM (chỉ có header+tình hình+việc cần làm) và template.
+    """
+    out = _shelter_line(shelter, lang)
+    if shelter:
+        if shelter.get("address"):
+            out += f"\n📍 {shelter['address']}"
+        extra = " · ".join(x for x in [shelter.get("kind"),
+                                       (f"sức chứa {shelter['capacity']}" if shelter.get("capacity") else None)] if x)
+        if extra:
+            out += f"\n👥 {extra}"
+        if shelter.get("lat") is not None and shelter.get("lon") is not None:
+            url = f"https://www.google.com/maps/dir/?api=1&destination={shelter['lat']},{shelter['lon']}"
+            out += f'\n🧭 <a href="{url}">Chỉ đường Google Maps</a>'
+    if source:
+        out += _source_line({"provenance": {"source": source, "observed_at": date}})
+    return out
 
 
 def build(top_event: dict, bulletins: list[dict], recipients: dict,

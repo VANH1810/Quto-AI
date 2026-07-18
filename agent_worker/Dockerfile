@@ -14,6 +14,10 @@ WORKDIR /srv
 COPY requirements.txt /srv/requirements.txt
 RUN pip install -r /srv/requirements.txt
 
+# 1b) espeak-ng: TTS offline sinh WAV cho endpoint /demo/alert-audio (phát loa).
+RUN apt-get update && apt-get install -y --no-install-recommends espeak-ng \
+    && rm -rf /var/lib/apt/lists/*
+
 # 2) Source agent_worker (context = agent_worker/ → copy vào /srv/agent_worker).
 COPY . /srv/agent_worker
 
