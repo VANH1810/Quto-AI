@@ -1,67 +1,73 @@
-# Pipeline runner — live / scenario / replay
+# Pipeline cảnh báo sớm — mô tả black-box cho teammate
 
-End-to-end flow: Open-Meteo → cached fetch → nowcast grids (LSTM) + 7-day
-point forecast → antecedent state → `RiskEngineInput` per commune →
-`risk_engine.evaluate` → assessments + CAP XML on disk. **Nothing is ever
-dispatched**; the pipeline ends at files under `runs/`.
+## Nó làm gì?
 
-Run everything from the repo root with the TF env (`.venv-tf3`, see
-`requirements-tf.txt`):
+Chạy 1 lệnh duy nhất → module tự động: lấy dữ liệu thời tiết thật (Open-Meteo)
+cho 3 xã Điện Biên → chạy model nowcast (LSTM) + forecast 7 ngày → đưa qua
+risk engine (ngưỡng QĐ 18/2021) → **xuất ra file đánh giá rủi ro + CAP XML
+trên đĩa**. Hết. Nó KHÔNG gửi tin đi đâu cả — việc sinh bản tin (LLM) và
+dispatch (Zalo/SMS/loa) là bước SAU, đọc từ output của nó.
+
+```
+Open-Meteo ──► nowcast + forecast ──► risk engine ──► runs/<run>/tick_NN/assessments.json
+                                                      (+ cap_*.xml)
+```
+
+## Output ở đâu, format thế nào?
+
+Mỗi lần chạy tạo 1 thư mục `runs/<timestamp>_<mode>/tick_NN/`. File cần quan
+tâm duy nhất: **`assessments.json`** — mảng `assessments`, mỗi phần tử là 1
+đánh giá cho 1 loại thiên tai của 1 xã:
+
+```jsonc
+{
+  "commune_code": "03136",            // xã (Mường Pồn)
+  "hazard_type": "lu_quet_sat_lo",    // loại: lu_quet_sat_lo | mua_lon | ret_hai | suong_mu | heartbeat
+  "risk_level": 2,                    // cấp 0–5 theo QĐ18
+  "risk_color": "vang_nhat",          // màu hiển thị
+  "msg_type": "Alert",                // Alert = mới | Update | Cancel = hết
+  "output_class": "public_warning",   // QUAN TRỌNG: chỉ public_warning mới được gửi cho dân;
+                                      // official_advisory = chỉ cán bộ; heartbeat = bỏ qua
+  "requires_human_approval": false,   // true (cấp ≥3) → PHẢI chờ admin duyệt mới dispatch
+  "onset_estimate": "...", "expires": "...",
+  "status": "Exercise",               // "Exercise" = diễn tập, hiển thị banner, KHÔNG gửi thật
+  "triggered_rules": [ ... ],         // điều luật + số liệu kích hoạt (để giải trình)
+  "derived": { "eff_rain_24h": 150.0, ... },
+  "provenance": { ... },              // nguồn dữ liệu, model, giờ fetch → làm dòng "Nguồn: ..."
+  "cap_xml": "<alert ...>"            // bản CAP 1.2 chuẩn quốc tế, kèm sẵn
+}
+```
+
+Kèm theo trong cùng thư mục: `cap_<xã>_<hazard>.xml` (CAP XML tách file),
+`risk_input_*.json` / `raw_api/` (dữ liệu gốc để audit/replay).
+
+## Deploy đơn giản nhất
 
 ```bash
+# 1 lần duy nhất: tạo env (Python 3.11 + TF, ~2 phút)
+uv venv .venv-tf3 --python 3.11
+uv pip install --python .venv-tf3/bin/python -r requirements-tf.txt
+
+# chạy 1 tick với dữ liệu THẬT (~10 giây, 5 HTTP request)
 PYTHONPATH=backend .venv-tf3/bin/python -m pipeline.run --source live --ticks 1
-PYTHONPATH=backend .venv-tf3/bin/python -m pipeline.run --source live --ticks 3
+```
+
+Console in ra tóm tắt từng tick; kết quả nằm ở dòng `artifacts runs/...`.
+
+Muốn demo có cảnh báo thật sự (trời đang đẹp thì live chỉ ra heartbeat):
+
+```bash
+# kịch bản bão Mường Pồn: Alert cấp 2 → cấp 4 → khuyến nghị hạ
 PYTHONPATH=backend .venv-tf3/bin/python -m pipeline.run --source scenario --scenario storm --ticks 8
-PYTHONPATH=backend .venv-tf3/bin/python -m pipeline.run --replay runs/<run_dir>
 ```
 
-Options: `--no-cache` (bypass the per-UTC-hour disk cache in `cache/openmeteo/`),
-`--station-mode csv --station-csv <file>` (gauge seam; default `none`),
-`--actual` (CAP status `Actual` — refused unless env `EWS_ALLOW_ACTUAL=1` is
-ALSO set; the default is always `[EXERCISE]`).
+Lưu ý an toàn: mặc định mọi output là `status: "Exercise"` (diễn tập). Banner
+`!! SCALER=DUMMY !!` nghĩa là số liệu nowcast chưa có ý nghĩa vật lý (chờ
+retrain scaler) — cứ kệ nó, engine không phụ thuộc.
 
-Fault injection: `EWS_FAKE_NET_FAIL=grid` or `=points` simulates a network
-failure for that fetch kind; the tick must still complete, degraded.
+## Bước tiếp theo (việc của teammate)
 
-## Reading the console block
-
-```
-── tick 1/3 (id #0107)  2026-07-18T07:00:00Z  source=live  [EXERCISE]  !! SCALER=DUMMY !! ──
- fetch     grid: 4 calls, 380 pts, cache 4/4 hit, 1.5s | points: 1 call, 3 communes, cache 1 hit, 0.0s
-           model=best_match_2026-07-18T07  subs=[EWSS:training_mean]  qm=identity
- nowcast   03136 Mường Pồn  rain6h=  0.2mm  valid=1.00  conf=0.60  (non-physical: dummy scaler)
- engine    03136  heartbeat  Update L0 heartbeat  data: obs=missing forecast=fresh degraded=True
- state     antecedent+commune_state snapshot | state written
- artifacts runs/20260718T070456_live/tick_107
-```
-
-- header: position/total, the persistent tick id (`#0107`, never reused across
-  runs), UTC tick hour, source, Exercise/Actual, and the DUMMY-scaler banner
-  whenever the nowcast scaler is the synthetic placeholder.
-- `fetch`: HTTP call counts, cache hits, timings; `subs=` lists every variable
-  filled with its training mean (z=0 substitution policy); `qm=` the quantile-map
-  mode (`identity` until `qm_<code>.json` artifacts are fitted).
-- `nowcast`: per-commune 6-hour rain from the real LSTM, mask coverage
-  (`valid`), and `conf = valid_fraction × NOWCAST_SKILL_PRIOR (0.6)`.
-- `engine`: one line per emitted assessment — msg type, level, output class,
-  and the engine's own data-quality verdict.
-- `--ticks N` live: tick 1 is the real current hour; ticks 2..N advance one
-  simulated hour each over the SAME cached fetch (polite-client rule).
-
-## Artifacts per tick (`runs/<run>/tick_<seq>/`)
-
-`raw_api/` (exact API responses = replay corpus), `grids_summary.json`,
-`nowcast.json`, `risk_input_<code>.json`, `assessments.json` (with pipeline
-provenance stamped: scaler status, substitutions, qm mode, fetch times),
-`cap_<code>_<hazard>.xml`, `state_before.json`, `tick_meta.json`.
-
-`--replay` re-executes every tick from `raw_api/` + `state_before.json` with
-no network and asserts the regenerated `assessments.json` is byte-identical
-(exit code 1 on any mismatch). Debug against replays, not live fetches.
-
-## State (`state/`)
-
-`antecedent/<code>.json` (local-day rain history → API/rain-day counters),
-`commune_state/<code>.json` (engine hazard state machines + idempotency
-cache), `tick_counter.json` (monotonic tick ids). Scenario and replay runs
-never write state.
+Đọc `assessments.json` → lọc theo `output_class` + `requires_human_approval` +
+`status` → đưa từng object vào LLM `generate_bulletin(...)` để sinh bản tin
+Việt/Thái/Mông → TTS → dispatch Zalo/SMS/loa. Object này là contract ổn định;
+không cần biết bên trong pipeline làm gì.
