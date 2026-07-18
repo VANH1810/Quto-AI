@@ -30,16 +30,52 @@ class QuantileMapper:
         data.pop("_comment", None)
         return data
 
-    def correct(self, commune_code: str, variable: str, value: float) -> float:
-        """Hiệu chỉnh 1 giá trị. Không có map → trả nguyên."""
-        m = self._maps.get(commune_code, {}).get(variable)
-        if not m:
-            return value
-        return round(_interp(value, m["model_q"], m["obs_q"]), 2)
+    def correct(self, commune_code: str, variable: str, value: float,
+                elevation: float | None = None) -> float:
+        """Hiệu chỉnh 1 giá trị.
 
-    def correct_series(self, commune_code: str, variable: str,
-                       values: list[float]) -> list[float]:
-        return [self.correct(commune_code, variable, v) for v in values]
+        Thứ tự ưu tiên:
+          1) Có bảng quantile theo xã (station/illustrative) → nội suy.
+          2) Không có bảng nhưng có độ cao → hiệu chỉnh SƠ BỘ theo độ cao (first-guess).
+          3) Không có gì → giữ nguyên.
+        """
+        m = self._maps.get(commune_code, {}).get(variable)
+        if m:
+            return round(_interp(value, m["model_q"], m["obs_q"]), 2)
+        if elevation is not None:
+            if variable == "precipitation_sum":
+                return round(value * _precip_factor(elevation), 2)
+            if variable == "temperature_2m_min" and elevation >= 1000:
+                return round(value - 1.0, 2)  # vùng cao đêm lạnh hơn model (nguy cơ rét/sương muối)
+        return value
+
+    def method(self, commune_code: str, variable: str,
+               elevation: float | None = None) -> str:
+        """Phương pháp đang áp dụng cho (xã, biến) — để gắn nhãn minh bạch."""
+        if self._maps.get(commune_code, {}).get(variable):
+            return "station-illustrative"
+        if elevation is not None and (
+                variable == "precipitation_sum"
+                or (variable == "temperature_2m_min" and elevation >= 1000)):
+            return "elevation-firstguess"
+        return "none"
+
+
+def _precip_factor(elevation: float) -> float:
+    """Hệ số nhân mưa SƠ BỘ theo dải độ cao (chưa hiệu chuẩn bằng trạm).
+
+    Cơ sở định tính: mô hình toàn cầu thường dự báo HỤT mưa ở vùng núi cao (địa hình
+    nâng khối khí). Số này chỉ là ước lượng đầu, thay bằng quantile map từ trạm khi có.
+    """
+    if elevation >= 1200:
+        return 1.22
+    if elevation >= 900:
+        return 1.15
+    if elevation >= 700:
+        return 1.10
+    if elevation >= 500:
+        return 1.05
+    return 1.00
 
 
 def _interp(x: float, xs: list[float], ys: list[float]) -> float:
