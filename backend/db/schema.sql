@@ -1,7 +1,3 @@
--- BẢN TIN AN TOÀN — Schema Supabase (Postgres)
--- Chạy trong Supabase → SQL Editor. Bật PostGIS nếu muốn truy vấn không gian.
--- create extension if not exists postgis;
-
 -- 1) Xã / cụm dân cư (bản đồ)
 create table if not exists communes (
   code                     text primary key,

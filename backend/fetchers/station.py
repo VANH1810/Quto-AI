@@ -1,13 +1,3 @@
-"""Station observation seam.
-
-Mode "csv" reads `timestamp,commune_code,rain_1h,temp,rh,wind` rows.
-Mode "none" (default) returns None per commune: the engine's own degraded-data
-guardrails then apply. We deliberately do NOT emit a block with
-quality="missing" — the engine recomputes quality from observed_at age and a
-recent timestamp would surface as data_quality.observations="fresh", which
-would misreport a station we do not have (see REPORT.md contract questions).
-"""
-
 from __future__ import annotations
 
 import csv

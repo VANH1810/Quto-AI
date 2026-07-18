@@ -1,9 +1,3 @@
-"""JWT cho admin (HS256, PyJWT) + bảo vệ route bằng HTTP Bearer.
-
-Dùng HTTPBearer (thay OAuth2PasswordBearer) → ô **Authorize** trên Swagger chỉ còn
-MỘT ô để dán token, gọn hơn nhiều.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

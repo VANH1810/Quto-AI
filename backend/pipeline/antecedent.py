@@ -1,11 +1,3 @@
-"""Antecedent precipitation bookkeeping (D2/D3 of the spec, adapter side).
-
-State is one JSON file per commune under state/antecedent/ holding daily rain
-totals keyed by LOCAL (Asia/Ho_Chi_Minh) date. Everything the engine reads
-(rain_days_prior, api_mm, days_since_data_gap) is recomputed deterministically
-from that history each tick — never fabricated when history is short.
-"""
-
 from __future__ import annotations
 
 import json
