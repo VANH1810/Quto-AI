@@ -18,6 +18,8 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: SUPABASE_URL
-        sync: false   # nhập trong dashboard (Environment)
+        sync: false   
       - key: SUPABASE_KEY
-        sync: false   # nhập trong dashboard — service_role, KHÔNG commit
+        sync: false  
+      - key: CORS_ORIGINS
+        value: http://localhost:3000,http://localhost:3001,https://quto-ai.vercel.app
