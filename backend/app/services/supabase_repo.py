@@ -72,6 +72,14 @@ def push_rescue_teams(teams: list[Any]) -> int:
     return _upsert("rescue_teams", teams, on_conflict="id")
 
 
+def push_loudspeakers(speakers: list[Any]) -> int:
+    return _upsert("loudspeakers", speakers, on_conflict="id")
+
+
+def push_interactions(logs: list[Any]) -> int:
+    return _upsert("interaction_logs", logs, on_conflict="id")
+
+
 def push_admins(records: list[Any]) -> int:
     """Admin là dataclass (không phải pydantic) → tự dựng row."""
     client = _client()

@@ -1,7 +1,7 @@
 """Sinh bản tin cảnh báo bằng LLM (đa provider) + mẫu mock đa ngữ.
 
-NGUYÊN TẮC: LLM chỉ DIỄN ĐẠT/DỊCH bản tin từ HazardEvent đã do risk engine
-quyết định. LLM KHÔNG quyết cấp độ rủi ro. Provider mock chạy không cần key.
+NGUYÊN TẮC: LLM chỉ DIỄN ĐẠT/DỊCH bản tin từ HazardEvent đã do risk engine quyết
+định. LLM KHÔNG quyết cấp độ rủi ro. Provider mock chạy không cần key.
 """
 
 from __future__ import annotations
@@ -13,8 +13,6 @@ from app.config import get_settings
 from app.schemas.alert import BulletinText, HazardEvent
 from app.schemas.common import HAZARD_META, Lang
 
-# Câu mở đầu theo ngôn ngữ (mock). Thái/Mông ở đây là bản rút gọn minh hoạ —
-# sản phẩm thật dùng biên dịch cộng đồng + TTS Meta MMS (blt/mww).
 _LEAD = {
     "vi": "CẢNH BÁO",
     "tai": "ꪁꪱꪫꪹꪈꪷꪷ (Cảnh báo)",
@@ -52,7 +50,6 @@ async def generate_bulletins(event: HazardEvent, langs: list[Lang]) -> list[Bull
         *[_llm_translate(vi, l, event, settings) for l in others]
     )
     out = [vi, *translated]
-    # Giữ đúng thứ tự yêu cầu
     order = {l.value: i for i, l in enumerate(langs)}
     return sorted(out, key=lambda b: order.get(b.lang, 99))
 

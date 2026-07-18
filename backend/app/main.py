@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.api.routes import (admin_console, admin_sos, admins, alerts, auth, citizens, dev, forecast,
-                            notifications, rescue, shelters)
+                            interactions, loudspeakers, notifications, rescue, shelters)
 from app.config import get_settings
 
 settings = get_settings()
@@ -32,6 +32,10 @@ tags_metadata = [
      "description": "Cảnh báo đã gửi tới TỪNG người dân (kèm nơi trú ẩn). **Cần đăng nhập.**"},
     {"name": "10 · Cứu hộ (SOS)",
      "description": "Dân gửi vị trí nguy hiểm (công khai) → dashboard admin → cử đội cứu hộ gần nhất."},
+    {"name": "11 · Loa truyền thanh",
+     "description": "Loa IP theo xã: online/offline, phát bản tin (ngắt lịch khẩn), thử lại loa lỗi."},
+    {"name": "12 · Nhật ký gửi tin",
+     "description": "Nhật ký tương tác: mọi lần gửi Zalo/SMS/loa (đã gửi ai, khi nào, kết quả)."},
     {"name": "9 · Hệ thống", "description": "Kiểm tra sống, cấu hình."},
 ]
 
@@ -73,6 +77,8 @@ app.include_router(dev.router)
 app.include_router(shelters.router)
 app.include_router(notifications.router)
 app.include_router(rescue.router)
+app.include_router(loudspeakers.router)
+app.include_router(interactions.router)
 
 
 @app.on_event("startup")

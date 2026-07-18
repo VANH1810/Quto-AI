@@ -1,10 +1,8 @@
 """Agent điều phối cảnh báo (mô phỏng vòng đời 1 cảnh báo).
 
-Đây là 'AI-native heart': từ HazardEvent do risk engine phát ra, agent gọi các
-'tool' (llm.generate_bulletins, tts.synthesize, dispatch.send) theo trình tự,
-có human-in-the-loop khi cấp cao, và ghi audit từng bước (data provenance).
-
-Kiến trúc để lộ các tool này qua MCP sau này rất tự nhiên (mỗi hàm = 1 tool).
+Từ HazardEvent do risk engine phát ra, agent gọi các 'tool' (llm.generate_bulletins,
+tts.synthesize, dispatch.send) theo trình tự, có human-in-the-loop khi cấp cao, và ghi
+audit từng bước (data provenance).
 """
 
 from __future__ import annotations
@@ -23,7 +21,7 @@ from app.services.citizens import citizens
 from app.services.notifications import notifications as notif_store
 from app.services.shelters import shelters as shelter_store
 
-# Kênh gửi cho công dân + nhóm cán bộ.
+# Kênh gửi cho công dân.
 _CITIZEN_CHANNELS = [Channel.zalo_zns, Channel.sms, Channel.loudspeaker]
 
 
@@ -32,27 +30,19 @@ def _now() -> str:
 
 
 async def create_alert(event: HazardEvent, langs: list[Lang] | None = None) -> Alert:
-    """Bước 1–3: sinh bản tin đa ngữ + TTS, quyết định có cần người duyệt.
-
-    - Cấp >= HUMAN_APPROVAL_MIN_LEVEL → status=pending_approval (chờ admin).
-    - Thấp hơn → status=approved (agent tự gửi ở bước dispatch).
-    """
+    """Bước 1–3: sinh bản tin đa ngữ + TTS, quyết định có cần người duyệt."""
     settings = get_settings()
     langs = langs or [Lang.vi, Lang.tai, Lang.hmn]
 
-    alert = Alert(
-        id=alerts_store.new_id(), event=event, status=AlertStatus.detected,
-        created_at=_now(),
-    )
+    alert = Alert(id=alerts_store.new_id(), event=event, status=AlertStatus.detected,
+                  created_at=_now())
     alerts_store.save(alert)
     alerts_store.log(alert.id, "detect",
                      f"{event.hazard} @ {event.commune_name} — {event.risk_label} "
                      f"({event.provenance.rule})")
 
-    # Tool: sinh bản tin (LLM chỉ diễn đạt/dịch)
     bulletins = await llm.generate_bulletins(event, langs)
 
-    # Tool: TTS cho loa (tiếng dân tộc) — chạy SONG SONG các thứ tiếng.
     async def _tts(b) -> None:
         try:
             b.audio_url = await tts.synthesize(b.body, Lang(b.lang))
@@ -61,8 +51,8 @@ async def create_alert(event: HazardEvent, langs: list[Lang] | None = None) -> A
 
     await asyncio.gather(*[_tts(b) for b in bulletins])
     alert.bulletins = bulletins
-    alerts_store.log(alert.id, "generate", f"Đã sinh {len(bulletins)} bản tin: "
-                     + ", ".join(b.lang for b in bulletins))
+    alerts_store.log(alert.id, "generate",
+                     f"Đã sinh {len(bulletins)} bản tin: " + ", ".join(b.lang for b in bulletins))
 
     if event.risk_level >= settings.human_approval_min_level:
         alert.status = AlertStatus.pending_approval
@@ -99,17 +89,12 @@ async def reject(alert: Alert, admin_id: str, note: str | None) -> Alert:
 
 
 async def dispatch(alert: Alert) -> Alert:
-    """Bước 4: gửi đa kênh cho công dân trong xã. Lỗi → tạo task đến-tận-nhà.
-
-    Ngoài nhật ký gửi cấp xã (DispatchRecord), tạo bản ghi tin nhắn cấp CÁ NHÂN
-    (Notification) cho từng công dân — kèm địa chỉ + nơi trú ẩn gần nhất.
-    """
+    """Bước 4: gửi đa kênh cho công dân trong xã + tạo tin nhắn cấp cá nhân (DB3)."""
     alert.status = AlertStatus.dispatching
     event = alert.event
     body_vi = next((b.body for b in alert.bulletins if b.lang == Lang.vi.value),
                    alert.bulletins[0].body if alert.bulletins else "")
 
-    # Gửi từng kênh (cấp xã) + nhớ trạng thái để suy ra tin nhắn cá nhân.
     ch_status: dict[str, DispatchStatus] = {}
     any_fail = False
     for ch in _CITIZEN_CHANNELS:
@@ -126,7 +111,6 @@ async def dispatch(alert: Alert) -> Alert:
                              "Cán bộ đến tận nhà xong thì cập nhật ở /notifications (status=home_visit).")
 
     _record_notifications(alert, ch_status)
-
     alert.status = AlertStatus.partial_failed if any_fail else AlertStatus.sent
     alerts_store.save(alert)
     return alert
@@ -170,13 +154,13 @@ def _mirror_notifications(alert_id: str, created: list[Notification]) -> None:
     try:
         from app.services import supabase_repo
         if supabase_repo.enabled() and created:
-            supabase_repo.push_notifications(created)
+            supabase_repo.mirror(supabase_repo.push_notifications, created)
     except Exception as e:  # noqa: BLE001
         alerts_store.log(alert_id, "mirror_skip", f"Supabase: {e}")
 
 
 async def retry_failed(alert: Alert) -> Alert:
-    """Gửi lại các kênh đang failed. Vẫn lỗi → giữ/nhắc task đến-tận-nhà."""
+    """Gửi lại các kênh đang failed + cập nhật trạng thái tin nhắn cá nhân."""
     event = alert.event
     body_vi = next((b.body for b in alert.bulletins if b.lang == Lang.vi.value), "")
     still_fail = False
@@ -192,7 +176,6 @@ async def retry_failed(alert: Alert) -> Alert:
         if rec.status == DispatchStatus.failed:
             still_fail = True
 
-    # Cập nhật trạng thái tin nhắn cá nhân theo kết quả gửi lại.
     ch_status = {d.channel: d.status for d in alert.dispatches}
     for n in notif_store.by_alert(alert.id):
         st = ch_status.get(n.channel, DispatchStatus.ok)

@@ -84,6 +84,8 @@ async def get_overview(commune_id: str, days: int = 7) -> tuple[CommuneOverviewD
             forecast_7_days=forecast,
         )
         ttl = max(0, get_settings().commune_overview_cache_ttl_seconds)
+        if forecast.source.startswith("Synthetic"):
+            ttl = min(ttl, 60)
         if ttl > 0:
             _CACHE[key] = _CacheEntry(data=data.model_copy(deep=True), expires_at=now + ttl)
         return data, False

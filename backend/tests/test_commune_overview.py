@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.providers import weather
 from app.schemas.alert import BulletinText
 from app.schemas.forecast import DailyForecast, ForecastResponse
 from app.services import commune_overview
@@ -69,6 +70,28 @@ class CommuneOverviewRouteTests(unittest.TestCase):
         self.assertIsNone(body["data"])
         self.assertEqual(body["error"]["code"], "commune_not_found")
         self.assertEqual(response.headers["cache-control"], "no-store")
+
+
+class WeatherCacheTests(unittest.IsolatedAsyncioTestCase):
+    async def test_weather_cache_coalesces_repeated_commune_requests(self):
+        weather.clear_cache()
+        commune = get_commune("muong_pon")
+        assert commune is not None
+        forecast = ForecastResponse(
+            commune_code=commune.code, commune_name=commune.name,
+            lat=commune.lat, lon=commune.lon, elevation_m=commune.elevation_m,
+            source="test-weather", updated_at="2026-07-18T08:00:00+07:00",
+            days=[DailyForecast(date="2026-07-18", precip_mm=1, temp_min_c=20,
+                                temp_max_c=28, temp_mean_c=24, wind_max_kmh=10,
+                                humidity_mean=80)],
+        )
+        fetch_mock = AsyncMock(return_value=forecast)
+        with patch("app.providers.weather._fetch_forecast", fetch_mock):
+            first = await weather.get_forecast(commune, 1)
+            first.days[0].precip_mm = 999
+            second = await weather.get_forecast(commune, 1)
+        self.assertEqual(second.days[0].precip_mm, 1)
+        fetch_mock.assert_awaited_once()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,31 @@
+# Không copy vào image (tránh rác + rò rỉ secret)
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Môi trường ảo / phụ thuộc
+**/.venv/
+**/venv/
+**/env/
+**/node_modules/
+
+# Secrets & cấu hình cục bộ (image dùng biến môi trường từ compose)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git & IDE
+.git/
+.gitignore
+**/.vscode/
+**/.idea/
+
+# Tài liệu / build phụ (không cần lúc runtime)
+**/*.log
+**/*.md
+Dockerfile
+docker-compose.yml
+.dockerignore
