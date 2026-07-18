@@ -34,6 +34,7 @@ export const AppHeader = memo(function AppHeader({ activePage = "map" }: AppHead
       <nav id="primary-navigation" className={`primary-nav${menuOpen ? " open" : ""}`} aria-label="Điều hướng chính">
         <Link className={activePage === "map" ? "active" : undefined} href="/" aria-current={activePage === "map" ? "page" : undefined} onClick={() => setMenuOpen(false)}>Bản đồ cảnh báo</Link>
         <Link className={activePage === "forecast" ? "active" : undefined} href="/forecast" aria-current={activePage === "forecast" ? "page" : undefined} onClick={() => setMenuOpen(false)}>Dự báo khu vực</Link>
+        <Link href="/admin" onClick={() => setMenuOpen(false)}>Quản trị</Link>
       </nav>
     </header>
   );

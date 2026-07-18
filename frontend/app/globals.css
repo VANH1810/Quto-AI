@@ -63,7 +63,7 @@ button { color: inherit; }
 .brand-copy { min-width: 0; display: flex; flex: 1 1 auto; flex-direction: column; line-height: 1.12; }
 .brand-copy span { overflow: hidden; color: var(--brand-blue); font-size: clamp(12px, 1.15vw, 16px); font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .brand-copy strong { margin-top: clamp(2px, .3vw, 4px); overflow: hidden; color: var(--brand-blue); font-size: clamp(19px, 1.8vw, 27px); font-weight: 700; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
-.primary-nav { width: min(39vw, 500px); flex: 0 1 500px; min-width: 360px; align-self: stretch; margin-left: auto; display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; }
+.primary-nav { width: min(52vw, 680px); flex: 0 1 680px; min-width: 480px; align-self: stretch; margin-left: auto; display: grid; grid-template-columns: repeat(3, 1fr); align-items: stretch; }
 .primary-nav a, .primary-nav span { position: relative; min-width: 0; padding: 0 clamp(10px, 1.2vw, 18px); display: flex; align-items: center; justify-content: center; color: var(--brand-blue); font-size: clamp(16px, 1.4vw, 21px); font-weight: 700; text-align: center; text-decoration: none; white-space: nowrap; }
 .primary-nav a { transition: background-color .2s ease, color .2s ease; }
 .primary-nav a:hover { background: rgba(255, 255, 255, .42); }
@@ -417,8 +417,9 @@ button { color: inherit; }
   .nav-toggle:active { transform: scale(.97); }
   .nav-toggle svg { width: 22px; height: 22px; stroke-width: 2; }
   .primary-nav { position: absolute; top: calc(100% + 8px); right: clamp(14px, 2.4vw, 24px); width: min(320px, calc(100vw - 28px)); min-width: 0; height: auto; max-height: 0; overflow: hidden; grid-template-columns: 1fr; align-self: auto; margin: 0; border: 1px solid rgba(0, 97, 182, .16); border-radius: 11px; background: rgba(248, 253, 255, .98); box-shadow: 0 16px 36px rgba(0, 58, 106, .18); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: max-height .24s ease, opacity .2s ease, transform .2s ease, visibility .2s; }
-  .primary-nav.open { max-height: 160px; opacity: 1; visibility: visible; transform: translateY(0); }
+  .primary-nav.open { max-height: 220px; opacity: 1; visibility: visible; transform: translateY(0); }
   .primary-nav a, .primary-nav span { min-height: 52px; padding: 0 16px; justify-content: flex-start; font-size: 16px; }
+  .primary-nav a + a { border-top: 1px solid rgba(0, 97, 182, .1); }
   .primary-nav a.active::after { top: 10px; right: auto; bottom: 10px; left: 0; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
   .primary-nav span { border-top: 1px solid rgba(0, 97, 182, .1); }
 }
