@@ -1,17 +1,19 @@
-import type { CommuneAlert, CommuneCenter, HazardType, RiskLevel } from "@/types";
+import type { CommuneAlert, CommuneCenter, RiskLevel } from "@/types";
 import type { ApiForecastDay, CommuneOverview, ForecastHazard, RecommendedTask } from "@/types/forecast";
 import { HAZARD_META, RISK_META } from "@/utils/risk";
 
-const FORECAST_HAZARDS: ForecastHazard[] = [
+type MockForecastHazard = Exclude<ForecastHazard, "frost">;
+
+const FORECAST_HAZARDS: MockForecastHazard[] = [
   "flash_flood",
   "landslide",
   "heavy_rain",
   "fog",
-  "frost",
+  "heavy_rain",
   "normal",
 ];
 
-const TASKS: Record<ForecastHazard, Array<Omit<RecommendedTask, "id" | "hazard">>> = {
+const TASKS: Record<MockForecastHazard, Array<Omit<RecommendedTask, "id" | "hazard">>> = {
   flash_flood: [
     { title: "Không đi qua ngầm tràn", priority: "immediate" },
     { title: "Di chuyển lên điểm cao khi có hướng dẫn", priority: "immediate" },
@@ -23,10 +25,6 @@ const TASKS: Record<ForecastHazard, Array<Omit<RecommendedTask, "id" | "hazard">
   heavy_rain: [
     { title: "Hạn chế đi qua khu vực trũng thấp", priority: "immediate" },
     { title: "Khơi thông rãnh thoát nước an toàn", priority: "high" },
-  ],
-  frost: [
-    { title: "Giữ ấm cho người và vật nuôi", priority: "immediate" },
-    { title: "Không dùng bếp than trong phòng kín", priority: "immediate" },
   ],
   fog: [
     { title: "Bật đèn khi di chuyển", priority: "high" },
@@ -101,7 +99,10 @@ export function createMockCommuneOverview(commune: CommuneCenter, alert?: Commun
   const baseDate = new Date();
   baseDate.setHours(12, 0, 0, 0);
   const forecastDays = buildForecastDays(seed, alert, baseDate);
-  const currentHazard = alert?.hazard ?? FORECAST_HAZARDS[seed % (FORECAST_HAZARDS.length - 1)] as HazardType;
+  const fallbackHazard = FORECAST_HAZARDS[seed % (FORECAST_HAZARDS.length - 1)] as Exclude<MockForecastHazard, "normal">;
+  const currentHazard: Exclude<MockForecastHazard, "normal"> = alert?.hazard === "frost"
+    ? "heavy_rain"
+    : alert?.hazard ?? fallbackHazard;
   const currentRiskLevel = alert?.riskLevel ?? ((seed % 5) + 1) as RiskLevel;
   const hazards = forecastDays.map((day, index) => {
     const hazard = index === 0
@@ -119,7 +120,9 @@ export function createMockCommuneOverview(commune: CommuneCenter, alert?: Commun
     };
   });
   const risk = RISK_META[currentRiskLevel];
-  const currentHazardLabel = alert?.hazardLabel ?? hazardLabel(currentHazard);
+  const currentHazardLabel = alert?.hazard === "frost"
+    ? HAZARD_META.heavy_rain.label
+    : alert?.hazardLabel ?? hazardLabel(currentHazard);
   const elevation = 420 + (seed % 1280);
 
   return {

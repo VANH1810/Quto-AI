@@ -98,7 +98,6 @@ export function RegionalForecast() {
       <div className="forecast-background">
         <div className="forecast-layout">
           <aside className="forecast-sidebar" aria-labelledby="seven-day-heading">
-            <h1 id="seven-day-heading">Dự báo thời tiết 7 ngày</h1>
             {dashboardData && (
               <CommuneLocationPicker
                 className="forecast-location-picker"
@@ -115,6 +114,7 @@ export function RegionalForecast() {
                 onLocate={locateCurrentPosition}
               />
             )}
+            <h1 id="seven-day-heading">Dự báo thời tiết 7 ngày</h1>
             <div className="forecast-day-list" role="list" aria-label="Chọn ngày dự báo">
               {forecastDays.map((day) => (
                 <div role="listitem" key={day.id}>
