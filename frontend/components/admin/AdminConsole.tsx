@@ -20,7 +20,7 @@ const hazardLabel = (hazard: string) => ({ flash_flood: "Lũ quét", heavy_rain:
 const alertStatusLabel = (status: string) => ({ pending_approval: "Chờ phê duyệt", partial_failed: "Gửi một phần thất bại", sent: "Đã gửi", failed: "Gửi thất bại" }[status.toLowerCase()] ?? status);
 const sosStatusLabel = (status: SOSStatus) => ({ NEW: "Mới", ACKNOWLEDGED: "Đã tiếp nhận", DISPATCHED: "Đang điều phối", RESCUED: "Đã cứu trợ", CANCELLED: "Đã hủy" }[status]);
 const speakerBroadcasts = [
-  { id: "broadcast-001", speakerId: "sp-01", title: "Cảnh báo lũ quét cấp 3", playedAt: "22:46 17/07/2026", duration: "00:34", text: "Cảnh báo lũ quét cấp 3 tại xã Sín Thầu. Người dân chủ động rời xa khu vực ven suối và làm theo hướng dẫn của chính quyền địa phương." },
+  { id: "broadcast-001", speakerId: "sp-01", title: "Cảnh báo lũ quét cấp 4", playedAt: "22:46 17/07/2026", duration: "00:34", text: "Cảnh báo lũ quét cấp 4 tại xã Sín Thầu. Người dân chủ động rời xa khu vực ven suối và làm theo hướng dẫn của chính quyền địa phương." },
   { id: "broadcast-002", speakerId: "sp-03", title: "Thông báo sương mù", playedAt: "21:20 17/07/2026", duration: "00:27", text: "Thông báo sương mù dày tại xã Quảng Lâm. Người dân hạn chế di chuyển qua các đoạn đường đèo vào sáng sớm." },
   { id: "broadcast-003", speakerId: "sp-02", title: "Cảnh báo mưa lớn cấp 2", playedAt: "22:58 17/07/2026", duration: "00:31", text: "Cảnh báo mưa lớn cấp 2 tại xã Nậm Kè. Người dân chủ động kiểm tra đường tràn và khu vực có nguy cơ sạt lở." },
 ];
