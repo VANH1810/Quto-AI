@@ -117,6 +117,7 @@ Quan hệ chính: `communes` là bảng gốc — `citizens`, `shelters`, `alert
 | Method | Path | Việc |
 |---|---|---|
 | GET | `/api/v1/communes` | 45 xã + toạ độ (vẽ marker) |
+| GET | `/api/v1/communes/{commune_id}/overview` | Tình hình hiện tại + brief AI + việc cần làm + dự báo 7 ngày |
 | GET | `/api/v1/forecast/{code}` | Dự báo 3–7 ngày cho 1 xã |
 | GET | `/api/v1/risk-map` | Cấp độ + màu nguy cơ mọi xã (tô bản đồ) |
 
