@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 dependencies = [
   "jsonschema",
   "pyyaml",
+  "tzdata; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

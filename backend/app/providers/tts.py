@@ -1,10 +1,8 @@
 """Chuyển bản tin → audio để phát loa (tiếng dân tộc).
 
 Mã Meta MMS (VITS): Thái/Tai Dam = 'blt', Mông trắng/Hmong Daw = 'mww',
-Mông xanh/Hmong Njua = 'hnj', Tiếng Việt dùng TTS thương mại (FPT/Viettel).
-
-Provider mock: KHÔNG tạo file thật, chỉ trả URL giả lập để demo luồng loa. Đổi
-TTS_PROVIDER=mms để cắm Meta MMS (cần transformers + torch + kiểm tra vocab blt).
+Tiếng Việt dùng TTS thương mại. Provider mock KHÔNG tạo file thật, chỉ trả URL giả
+lập để demo luồng loa. Đổi TTS_PROVIDER=mms để cắm Meta MMS.
 """
 
 from __future__ import annotations
@@ -22,7 +20,6 @@ async def synthesize(text: str, lang: Lang) -> str:
     if settings.tts_provider.lower() == "mock":
         stub = abs(hash(text)) % 100000
         return f"/audio/mock/{lang.value}_{code}_{stub}.wav"
-    # Provider mms: nạp facebook/mms-tts-<code> qua transformers VitsModel.
     return await _mms(text, code)
 
 
