@@ -29,15 +29,13 @@ Nếu muốn dùng pnpm, cài một lần bằng `npm install -g pnpm`, sau đó
 
 ## Chế độ dữ liệu
 
-Mặc định `NEXT_PUBLIC_DATA_SOURCE=mock`. Dữ liệu nằm tại:
+Client chỉ gọi các route cùng origin dưới `/api/data`; fixture không còn được import vào Client Components. Nguồn được chọn bên server bằng `APP_DATA_SOURCE`:
 
-- `public/data/dien-bien-province.geojson`: polygon giới hạn tỉnh Điện Biên.
-- `public/data/dien-bien-communes.geojson`: 45 xã/phường mới có hiệu lực từ 01/07/2025. Mã xã dùng danh mục tại Quyết định 19/2025/QĐ-TTg; hình học là snapshot OpenStreetMap và cần được cơ quan chuyên môn thẩm định trước khi dùng cho nghiệp vụ chính thức.
-- `data/mockAlerts.ts`: cảnh báo và cấp nguy hiểm 1-5.
-- `data/mockForecast.ts`: dự báo 7 ngày, diễn biến rủi ro và khuyến nghị đồng bộ theo xã/cảnh báo đang chọn.
-- `data/shelters.ts`: điểm trú ẩn và metadata nguồn nội bộ.
+- `local`: fixture trong repo, chỉ bundle vào server output; phù hợp phát triển local.
+- `blob`: snapshot JSON trong Private Vercel Blob; URL và credential không được gửi xuống browser.
+- `api`: Vercel Function gọi FastAPI qua `APP_BACKEND_URL`.
 
-Ở chế độ mặc định `mock`, cả Home/bản đồ và route `/forecast` đều chạy trực tiếp từ dữ liệu đã được commit trong repository. Người dùng khác chỉ cần clone repo và build frontend, không cần `.env.local` hoặc backend. Chuyển `NEXT_PUBLIC_DATA_SOURCE=api` khi muốn cả hai màn hình lấy dữ liệu thật từ FastAPI.
+Không dùng `NEXT_PUBLIC_*` cho lựa chọn nguồn hoặc Blob credential. Dữ liệu đã trả cho UI vẫn có thể xem trong Network tab; gateway bảo vệ fixture gốc, URL storage, credential và cấu hình triển khai, chứ không thể làm dữ liệu hiển thị trở nên vô hình.
 
 Làm mới snapshot ranh giới từ các OSM relation đã đối chiếu:
 
@@ -50,23 +48,18 @@ Script nguồn nằm ở `scripts/fetch-dien-bien-boundaries.mjs`. Sau khi làm 
 Để dùng API FastAPI hiện có, sao chép `.env.example` thành `.env.local` và đổi:
 
 ```env
-NEXT_PUBLIC_DATA_SOURCE=api
+APP_DATA_SOURCE=api
+APP_BACKEND_URL=http://localhost:8000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
-`services/dataSource.ts` triển khai cùng một `AlertDataSource` cho mock và backend; component chỉ nhận các kiểu dữ liệu chuẩn hóa trong `types/`. Route `/admin` gọi API điều hành tại `NEXT_PUBLIC_API_BASE_URL`, trong khi route bản đồ vẫn tôn trọng `NEXT_PUBLIC_DATA_SOURCE`. Khi chạy local, backend cần cho phép CORS từ `http://localhost:3000`.
+`services/dataSource.ts` chỉ gọi gateway. `server/dataGateway.ts` chuẩn hóa cả ba nguồn về các kiểu trong `types/`. `NEXT_PUBLIC_API_BASE_URL` chỉ còn phục vụ luồng đăng nhập/kiểm tra phiên admin trực tiếp từ browser; backend cần cho phép CORS cho các request đó.
 
 ## Console điều hành
 
 Các route vận hành dùng cùng ứng dụng: `/admin`, `/admin/alerts`, `/admin/risks`, `/admin/delivery`, `/admin/speakers` và `/admin/audit`.
 
-Để trình diễn độc lập với backend, đặt rõ ràng trong `.env.local`:
-
-```env
-NEXT_PUBLIC_USE_MOCKS=true
-```
-
-Mock chỉ được bật bằng biến môi trường này; không tự chuyển sang mock khi API trả lỗi xác thực hoặc lỗi máy chủ. Chế độ mock gán admin demo cho bốn xã Sín Thầu, Nậm Kè, Quảng Lâm, Na Sang và có hai nhóm cần liên hệ trực tiếp được tách theo `alertId`.
+Các route quản trị cũng dùng gateway này. Gateway không tự fallback từ `api` sang `local` hoặc `blob` khi backend lỗi, tránh che giấu sự cố production.
 
 ## Deploy trên Vercel
 
@@ -74,13 +67,14 @@ Khi import repository vào Vercel, đặt **Root Directory** là `frontend`. Ver
 
 Thiết lập biến môi trường cho cả Production và Preview:
 
-| Biến | Production dùng backend | Bản demo độc lập |
+| Biến | Backend thật | Private Blob |
 |---|---|---|
-| `NEXT_PUBLIC_DATA_SOURCE` | `api` | `mock` |
-| `NEXT_PUBLIC_API_BASE_URL` | URL HTTPS public của FastAPI | Có thể bỏ qua nếu mọi màn hình đều dùng mock |
-| `NEXT_PUBLIC_USE_MOCKS` | `false` | `true` |
+| `APP_DATA_SOURCE` | `api` | `blob` |
+| `APP_BACKEND_URL` | URL HTTPS của FastAPI | Không cần |
+| `APP_DATA_BLOB_URL` | Không cần | URL private đầy đủ của snapshot |
+| `NEXT_PUBLIC_API_BASE_URL` | URL HTTPS cho login/session admin | URL HTTPS cho login/session admin |
 
-Nếu dùng backend thật, thêm domain Production/Preview của Vercel vào `CORS_ORIGINS` phía FastAPI. Không đưa khóa bí mật vào biến có tiền tố `NEXT_PUBLIC_`; ba biến frontend trên đều được nhúng vào JavaScript lúc build, vì vậy cần redeploy sau khi đổi giá trị.
+Nếu dùng backend thật, thêm domain Production/Preview của Vercel vào `CORS_ORIGINS` phía FastAPI cho login/session admin. Không đưa khóa bí mật vào biến có tiền tố `NEXT_PUBLIC_`. Thay đổi env trên Vercel chỉ áp dụng cho deployment mới nên cần redeploy.
 
 Trước khi deploy hoặc promote Preview sang Production, chạy:
 
@@ -112,3 +106,18 @@ frontend/
 - Geolocation chỉ hoạt động trên `localhost` hoặc HTTPS và cần người dùng cấp quyền.
 - OpenStreetMap là nguồn mở do cộng đồng đóng góp, không phải hồ sơ địa chính pháp lý. Trước khi triển khai vận hành cảnh báo chính thức, cần đối chiếu snapshot với dữ liệu địa giới do cơ quan nhà nước có thẩm quyền cung cấp.
 - Dữ liệu cảnh báo, dân số tham khảo và điểm trú ẩn hiện vẫn là mock; thay chúng bằng dữ liệu backend đã xác minh trước khi sử dụng thực tế.
+## Tạo Private Blob snapshot
+
+1. Ở local, đặt `APP_DATA_SOURCE=local` và `ALLOW_MOCK_SNAPSHOT_EXPORT=true`, rồi chạy dev server.
+2. Chạy `npm run data:export-mocks`; file `quto-data.snapshot.json` được tạo và đã nằm trong `.gitignore`.
+3. Trong Vercel Storage, tạo Blob store với access `Private` và connect store với project.
+4. Upload snapshot:
+
+   ```bash
+   vercel blob put quto-data.snapshot.json --access private --content-type application/json
+   ```
+
+5. Trên Vercel đặt `APP_DATA_SOURCE=blob` và `APP_DATA_BLOB_URL` bằng URL private đầy đủ của file. Khi store đã connect, Vercel Function dùng OIDC tự động; local có thể dùng `BLOB_READ_WRITE_TOKEN` trong `.env.local`.
+6. Redeploy vì thay đổi environment variables chỉ áp dụng cho deployment mới.
+
+Để chuyển sang backend thật, chỉ cần đặt `APP_DATA_SOURCE=api` và `APP_BACKEND_URL`; client/UI không đổi.

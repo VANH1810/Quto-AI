@@ -1,7 +1,5 @@
-import { createMockCommuneOverview } from "@/data/mockForecast";
-import { getApiBaseUrl } from "@/services/apiConfig";
 import type { CommuneAlert, CommuneCenter } from "@/types";
-import type { CommuneOverview, CommuneOverviewEnvelope } from "@/types/forecast";
+import type { CommuneOverview } from "@/types/forecast";
 
 interface CacheEntry {
   data: CommuneOverview;
@@ -13,24 +11,19 @@ const cache = new Map<string, CacheEntry>();
 const requests = new Map<string, Promise<CommuneOverview>>();
 
 function cacheKey(commune: CommuneCenter, alert?: CommuneAlert) {
-  return process.env.NEXT_PUBLIC_DATA_SOURCE === "api"
-    ? `api:${commune.code}`
-    : `mock:${commune.code}:${alert?.hazard ?? "none"}:${alert?.riskLevel ?? 0}`;
+  return `${commune.code}:${alert?.hazard ?? "none"}:${alert?.riskLevel ?? 0}`;
 }
 
 async function requestOverview(commune: CommuneCenter, alert?: CommuneAlert): Promise<CommuneOverview> {
   const key = cacheKey(commune, alert);
-  if (process.env.NEXT_PUBLIC_DATA_SOURCE !== "api") {
-    const data = createMockCommuneOverview(commune, alert);
-    cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-    return data;
+  const query = new URLSearchParams();
+  if (alert) {
+    query.set("hazard", alert.hazard);
+    query.set("riskLevel", String(alert.riskLevel));
   }
-
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/communes/${encodeURIComponent(commune.code)}/overview`);
-  const payload = await response.json() as CommuneOverviewEnvelope;
-  if (!response.ok || !payload.data) {
-    throw new Error(payload.error?.message ?? "Không thể tải dự báo cho khu vực đã chọn.");
-  }
+  const response = await fetch(`/api/data/communes/${encodeURIComponent(commune.code)}/overview?${query}`);
+  const payload = await response.json().catch(() => null) as { data?: CommuneOverview; error?: string } | null;
+  if (!response.ok || !payload?.data) throw new Error(payload?.error ?? "Không thể tải dự báo cho khu vực đã chọn.");
   cache.set(key, { data: payload.data, expiresAt: Date.now() + CACHE_TTL_MS });
   return payload.data;
 }

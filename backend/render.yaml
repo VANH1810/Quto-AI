@@ -15,6 +15,8 @@ services:
         value: openmeteo
       - key: LLM_PROVIDER
         value: mock
+      - key: CORS_ORIGINS
+        value: http://localhost:3000,http://localhost:3001,https://quto-ai.vercel.app
       - key: JWT_SECRET
         generateValue: true
       - key: SUPABASE_URL

@@ -4,12 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { memo, useState } from "react";
+import { EmergencySOS } from "@/components/EmergencySOS";
 
 interface AppHeaderProps {
   activePage?: "map" | "forecast";
+  sosCommune?: { code: string; name: string } | null;
 }
 
-export const AppHeader = memo(function AppHeader({ activePage = "map" }: AppHeaderProps) {
+export const AppHeader = memo(function AppHeader({ activePage = "map", sosCommune }: AppHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -36,6 +38,7 @@ export const AppHeader = memo(function AppHeader({ activePage = "map" }: AppHead
         <Link className={activePage === "forecast" ? "active" : undefined} href="/forecast" aria-current={activePage === "forecast" ? "page" : undefined} onClick={() => setMenuOpen(false)}>Dự báo khu vực</Link>
         <Link href="/admin" onClick={() => setMenuOpen(false)}>Quản trị</Link>
       </nav>
+      <EmergencySOS commune={sosCommune} />
     </header>
   );
 });

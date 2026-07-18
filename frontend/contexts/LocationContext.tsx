@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { useGeolocation } from "@/hooks/useGeolocation";
+import { useGeolocation, type GeolocationStatus } from "@/hooks/useGeolocation";
 import type { UserPosition } from "@/types";
 
 interface LocationContextValue {
@@ -9,6 +9,8 @@ interface LocationContextValue {
   selectedCommuneCode: string | null;
   position: UserPosition | null;
   locationError: string | null;
+  locationStatus: GeolocationStatus;
+  locationSource: UserPosition["source"] | null;
   isLocating: boolean;
   changeQuery: (value: string) => void;
   selectCommune: (code: string, name: string) => void;
@@ -17,9 +19,19 @@ interface LocationContextValue {
 }
 
 const LocationContext = createContext<LocationContextValue | null>(null);
+export const SIN_THAU_LOCATION: UserPosition = {
+  lat: 22.3958973,
+  lon: 102.27457,
+  accuracy: 0,
+  source: "mock",
+};
+export const SIN_THAU_COMMUNE = { code: "03158", name: "Xã Sín Thầu" } as const;
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const { position, error: locationError, isLocating, locate } = useGeolocation();
+  const { position, error: locationError, isLocating, status: locationStatus, locate } = useGeolocation({
+    mockPosition: SIN_THAU_LOCATION,
+    autoLocate: true,
+  });
   const [query, setQuery] = useState("");
   const [selectedCommuneCode, setSelectedCommuneCode] = useState<string | null>(null);
 
@@ -49,12 +61,14 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     selectedCommuneCode,
     position,
     locationError,
+    locationStatus,
+    locationSource: position?.source ?? null,
     isLocating,
     changeQuery,
     selectCommune,
     clearCommune,
     locateCurrentPosition,
-  }), [changeQuery, clearCommune, isLocating, locateCurrentPosition, locationError, position, query, selectCommune, selectedCommuneCode]);
+  }), [changeQuery, clearCommune, isLocating, locateCurrentPosition, locationError, locationStatus, position, query, selectCommune, selectedCommuneCode]);
 
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 }

@@ -8,8 +8,8 @@ import { MapLegend } from "@/components/MapLegend";
 import { SearchSidebar } from "@/components/SearchSidebar";
 import { useSharedLocation } from "@/contexts/LocationContext";
 import { useAlertData } from "@/hooks/useAlertData";
-import type { Coordinates, RiskFilter, SelectedPlace } from "@/types";
-import { featureContainsCoordinates, representativePointFromFeature } from "@/utils/geo";
+import type { Coordinates, DashboardData, RiskFilter, SelectedPlace } from "@/types";
+import { collectionContainsCoordinates, featureContainsCoordinates, representativePointFromFeature } from "@/utils/geo";
 
 const MapCanvas = dynamic(() => import("@/components/MapCanvas"), {
   ssr: false,
@@ -22,8 +22,23 @@ const DetailPanel = dynamic(
 
 const USER_SELECTION: SelectedPlace = { type: "user", id: "current" };
 
+function scopeDashboardToProvince(data: DashboardData): DashboardData {
+  const isInsideProvince = (coordinates: Coordinates) => collectionContainsCoordinates(data.provinceBoundary, coordinates);
+  const boundaries = data.boundaries.features.filter((feature) => isInsideProvince(representativePointFromFeature(feature)));
+  const communeCodes = new Set(boundaries.map((feature) => feature.properties.code));
+
+  return {
+    ...data,
+    boundaries: { ...data.boundaries, features: boundaries },
+    alerts: data.alerts.filter((alert) => communeCodes.has(alert.communeCode)),
+    shelters: data.shelters.filter((shelter) => communeCodes.has(shelter.communeCode) && isInsideProvince(shelter)),
+    communeCenters: data.communeCenters.filter((commune) => communeCodes.has(commune.code) && isInsideProvince(commune)),
+  };
+}
+
 export function AlertDashboard() {
   const { data, error, isLoading } = useAlertData();
+  const scopedData = useMemo(() => data ? scopeDashboardToProvince(data) : null, [data]);
   const {
     position,
     locationError,
@@ -60,25 +75,27 @@ export function AlertDashboard() {
     return () => window.clearTimeout(timeout);
   }, [hasDetailSelection]);
 
-  const gpsCommuneCode = useMemo(() => {
-    if (!data || !position) return null;
-    return data.boundaries.features.find((feature) => featureContainsCoordinates(feature, position))?.properties.code ?? null;
-  }, [data, position]);
+  const gpsCommune = useMemo(() => {
+    if (!scopedData || !position) return null;
+    const properties = scopedData.boundaries.features.find((feature) => featureContainsCoordinates(feature, position))?.properties;
+    return properties ? { code: properties.code, name: properties.name } : null;
+  }, [position, scopedData]);
+  const gpsCommuneCode = gpsCommune?.code ?? null;
 
   const activeCommuneCode = selectedCommuneCode ?? gpsCommuneCode;
   const visibleShelters = useMemo(
-    () => data && activeCommuneCode
-      ? data.shelters.filter((shelter) => shelter.communeCode === activeCommuneCode)
+    () => scopedData && activeCommuneCode
+      ? scopedData.shelters.filter((shelter) => shelter.communeCode === activeCommuneCode)
       : [],
-    [activeCommuneCode, data],
+    [activeCommuneCode, scopedData],
   );
 
   const routeOrigin = useMemo<Coordinates | null>(() => {
     if (position) return position;
-    if (!data || !selectedCommuneCode) return null;
-    const feature = data.boundaries.features.find((item) => item.properties.code === selectedCommuneCode);
+    if (!scopedData || !selectedCommuneCode) return null;
+    const feature = scopedData.boundaries.features.find((item) => item.properties.code === selectedCommuneCode);
     return feature ? representativePointFromFeature(feature) : null;
-  }, [data, position, selectedCommuneCode]);
+  }, [position, scopedData, selectedCommuneCode]);
 
   const resetToUserPosition = useCallback(() => {
     setSelection((current) => {
@@ -99,11 +116,11 @@ export function AlertDashboard() {
 
   const selectMapPlace = useCallback((place: SelectedPlace) => {
     if (place.type === "commune") {
-      const commune = data?.communeCenters.find((item) => item.code === place.id);
+      const commune = scopedData?.communeCenters.find((item) => item.code === place.id);
       if (commune) selectSharedCommune(commune.code, commune.name);
     }
     setSelection(place);
-  }, [data, selectSharedCommune]);
+  }, [scopedData, selectSharedCommune]);
 
   const changeFilter = useCallback((nextFilter: RiskFilter) => {
     setFilter(nextFilter);
@@ -119,37 +136,37 @@ export function AlertDashboard() {
   }, [changeSharedQuery, resetToUserPosition]);
 
   const selectSidebarCommune = useCallback((code: string) => {
-    const commune = data?.communeCenters.find((item) => item.code === code);
+    const commune = scopedData?.communeCenters.find((item) => item.code === code);
     if (commune) selectSharedCommune(commune.code, commune.name);
     setSelection({ type: "commune", id: code });
-  }, [data, selectSharedCommune]);
+  }, [scopedData, selectSharedCommune]);
 
   const selectShelter = useCallback((id: string) => {
     setSelection({ type: "shelter", id });
   }, []);
 
   const highRiskCount = useMemo(
-    () => data?.alerts.filter((alert) => alert.riskLevel >= 4).length ?? 0,
-    [data],
+    () => scopedData?.alerts.filter((alert) => alert.riskLevel >= 4).length ?? 0,
+    [scopedData],
   );
 
   if (isLoading) {
     return <main className="app-shell"><AppHeader /><div className="full-loading"><span /><strong>Đang chuẩn bị bản đồ Điện Biên</strong><p>Tải ranh giới xã và dữ liệu cảnh báo...</p></div></main>;
   }
 
-  if (error || !data) {
+  if (error || !scopedData) {
     return <main className="app-shell"><AppHeader /><div className="error-state"><AlertTriangle size={34} /><h1>Không thể tải bản đồ</h1><p>{error}</p><button onClick={() => window.location.reload()}><RefreshCw size={17} /> Thử lại</button></div></main>;
   }
 
   return (
     <main className="app-shell">
-      <AppHeader />
-      <div className="mobile-summary"><span><AlertTriangle size={17} /> {highRiskCount} khu vực nguy cơ cao</span><button onClick={locateCurrentPosition}><LocateFixed size={17} /> Định vị</button></div>
+      <AppHeader sosCommune={gpsCommune} />
+      <div className="mobile-summary"><span><AlertTriangle size={17} /> {highRiskCount} khu vực nguy cơ cao</span><span className="mobile-location-state"><LocateFixed size={17} />{isLocating ? "Đang lấy vị trí" : "Đã tự định vị"}</span></div>
       <div className={`dashboard-grid${isDetailColumnVisible ? " detail-visible" : ""}`}>
         <section className="map-panel" aria-label="Bản đồ cảnh báo thời tiết Điện Biên">
           <SearchSidebar
-            communes={data.communeCenters}
-            alerts={data.alerts}
+            communes={scopedData.communeCenters}
+            alerts={scopedData.alerts}
             query={query}
             filter={filter}
             isLocating={isLocating}
@@ -163,10 +180,10 @@ export function AlertDashboard() {
             onLocate={locateCurrentPosition}
           />
           <div className="map-summary"><span><i className="pulse-dot" /> 45 xã/phường · địa giới từ 01/07/2025</span><strong>{highRiskCount} khu vực cần chú ý ngay</strong></div>
-          <MapCanvas {...data} shelters={visibleShelters} filter={filter} selection={selection} userPosition={position} routeOrigin={routeOrigin} onSelect={selectMapPlace} />
+          <MapCanvas {...scopedData} shelters={visibleShelters} filter={filter} selection={selection} userPosition={position} routeOrigin={routeOrigin} onSelect={selectMapPlace} />
           <MapLegend />
         </section>
-        {isDetailColumnVisible && <DetailPanel selection={selection} alerts={data.alerts} communes={data.communeCenters} shelters={visibleShelters} routeOrigin={routeOrigin} onSelectShelter={selectShelter} onClose={closeDetailPanel} />}
+        {isDetailColumnVisible && <DetailPanel selection={selection} alerts={scopedData.alerts} communes={scopedData.communeCenters} shelters={visibleShelters} routeOrigin={routeOrigin} onSelectShelter={selectShelter} onClose={closeDetailPanel} />}
       </div>
     </main>
   );

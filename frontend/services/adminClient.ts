@@ -1,7 +1,5 @@
 import { getApiBaseUrl } from "@/services/apiConfig";
 
-export const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
-
 const GET_CACHE_TTL_MS = 30_000;
 const getCache = new Map<string, { expiresAt: number; payload: unknown }>();
 

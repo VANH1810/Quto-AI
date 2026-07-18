@@ -2,11 +2,11 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import L, { type Layer } from "leaflet";
-import { Circle, GeoJSON, MapContainer, Marker, Pane, Popup, TileLayer, useMap } from "react-leaflet";
+import { GeoJSON, MapContainer, Marker, Pane, Popup, TileLayer, useMap } from "react-leaflet";
 import type { Feature, Geometry, Polygon } from "geojson";
 import type { CommuneAlert, CommuneGeoJSON, CommuneProperties, Coordinates, DashboardData, ProvinceGeoJSON, RiskFilter, SelectedPlace, Shelter, UserPosition } from "@/types";
 import { googleMapsDirectionsUrl } from "@/utils/directions";
-import { representativePointFromFeature } from "@/utils/geo";
+import { collectionContainsCoordinates, representativePointFromFeature } from "@/utils/geo";
 import { RISK_META } from "@/utils/risk";
 import { formatShelterCapacity, SHELTER_KIND_LABELS } from "@/utils/shelter";
 
@@ -23,6 +23,7 @@ const userIcon = L.divIcon({ className: "map-marker user-marker", html: "<span><
 const approximateIcon = L.divIcon({ className: "map-marker approximate-marker", html: "<span><i></i></span>", iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -16] });
 const OUTSIDE_MASK_STYLE = { fillColor: "#68757b", fillOpacity: 0.58, color: "transparent", weight: 0, fillRule: "evenodd" as const };
 const PROVINCE_BOUNDARY_STYLE = { fillOpacity: 0, color: "#123b4a", opacity: 0.9, weight: 2.5 };
+const MAP_MAX_ZOOM = 13;
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
@@ -60,34 +61,64 @@ function ProvinceViewport({ bounds, hasActiveMarkers }: { bounds: L.LatLngBounds
 
     const container = map.getContainer();
     let animationFrame: number | null = null;
+    let dragAnimationFrame: number | null = null;
 
-    const fitProvince = () => {
+    const constrainViewport = () => {
       animationFrame = null;
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
 
       map.invalidateSize({ animate: false, pan: false });
-      if (hasActiveMarkers) return;
       const padding = getResponsivePadding(container);
+      const totalPadding = padding.paddingTopLeft.add(padding.paddingBottomRight);
 
-      // Clear the previous responsive minimum before recalculating for the new size.
+      // The minimum zoom is recalculated from the real province bounding box so
+      // resizing cannot expose a wider region. Layers and the map instance stay mounted.
       map.setMinZoom(0);
-      map.fitBounds(bounds, { ...padding, animate: false });
-      map.setMinZoom(map.getZoom());
       map.setMaxBounds(bounds);
+      map.setMaxZoom(MAP_MAX_ZOOM);
+      const minimumZoom = Math.min(MAP_MAX_ZOOM, map.getBoundsZoom(bounds, false, totalPadding));
+      map.setMinZoom(minimumZoom);
+
+      if (!hasActiveMarkers) {
+        map.fitBounds(bounds, { ...padding, maxZoom: MAP_MAX_ZOOM, animate: false });
+      } else if (map.getZoom() < minimumZoom) {
+        map.setZoom(minimumZoom, { animate: false });
+      }
+
+      map.panInsideBounds(bounds, { animate: false });
     };
 
-    const scheduleFit = () => {
+    const scheduleConstraint = () => {
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
-      animationFrame = requestAnimationFrame(fitProvince);
+      animationFrame = requestAnimationFrame(constrainViewport);
     };
 
-    const resizeObserver = new ResizeObserver(scheduleFit);
+    const returnToValidViewport = () => {
+      if (map.getZoom() < map.getMinZoom()) map.setZoom(map.getMinZoom(), { animate: true });
+      if (map.getZoom() > MAP_MAX_ZOOM) map.setZoom(MAP_MAX_ZOOM, { animate: true });
+      map.panInsideBounds(bounds, { animate: true, duration: 0.2 });
+    };
+
+    const constrainDuringDrag = () => {
+      if (dragAnimationFrame !== null) return;
+      dragAnimationFrame = requestAnimationFrame(() => {
+        dragAnimationFrame = null;
+        map.panInsideBounds(bounds, { animate: false, noMoveStart: true });
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleConstraint);
     resizeObserver.observe(container);
-    scheduleFit();
+    map.on("drag", constrainDuringDrag);
+    map.on("dragend zoomend", returnToValidViewport);
+    scheduleConstraint();
 
     return () => {
       resizeObserver.disconnect();
+      map.off("drag", constrainDuringDrag);
+      map.off("dragend zoomend", returnToValidViewport);
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+      if (dragAnimationFrame !== null) cancelAnimationFrame(dragAnimationFrame);
     };
   }, [bounds, hasActiveMarkers, map]);
 
@@ -123,7 +154,9 @@ function ActiveMarkersViewport({
 
       const bounds = L.latLngBounds(points);
       if (userPosition) {
-        bounds.extend(L.circle([userPosition.lat, userPosition.lon], { radius: userPosition.accuracy }).getBounds());
+        if (userPosition.accuracy > 0) {
+          bounds.extend(L.latLng(userPosition.lat, userPosition.lon).toBounds(userPosition.accuracy * 2));
+        }
       }
       map.fitBounds(bounds, { ...getResponsivePadding(container), maxZoom: 12, animate: false });
     };
@@ -240,8 +273,11 @@ const ShelterMarker = memo(function ShelterMarker({ shelter, routeOrigin, onSele
 const UserLocationLayer = memo(function UserLocationLayer({ position, onSelect }: { position: UserPosition; onSelect: (place: SelectedPlace) => void }) {
   const center = useMemo<[number, number]>(() => [position.lat, position.lon], [position.lat, position.lon]);
   const eventHandlers = useMemo(() => ({ click: () => onSelect({ type: "user", id: "current" }) }), [onSelect]);
-  const pathOptions = useMemo(() => ({ color: "#176b87", fillColor: "#4ab3d2", fillOpacity: 0.14, weight: 1 }), []);
-  return <><Circle center={center} radius={position.accuracy} pathOptions={pathOptions} /><Marker position={center} icon={userIcon} eventHandlers={eventHandlers}><Popup><div className="marker-popup"><small>Vị trí hiện tại</small><strong>Vị trí của bạn</strong><span>Độ chính xác khoảng {Math.round(position.accuracy)} m</span><p>Chọn để xem điểm trú ẩn gần nhất.</p></div></Popup></Marker></>;
+  return <>
+    <Marker position={center} icon={userIcon} eventHandlers={eventHandlers}>
+      <Popup><div className="marker-popup"><small>Vị trí hiện tại</small><strong>Vị trí của bạn</strong><span>Tọa độ: {position.lat}, {position.lon}</span><p>Chọn để xem điểm trú ẩn gần nhất.</p></div></Popup>
+    </Marker>
+  </>;
 });
 
 const ApproximateLocationMarker = memo(function ApproximateLocationMarker({ location, onSelect }: { location: Coordinates & { code: string; name: string }; onSelect: (place: SelectedPlace) => void }) {
@@ -254,21 +290,25 @@ function MapCanvas({ provinceBoundary, boundaries, alerts, shelters, filter, sel
   const alertsByCommune = useMemo(() => new Map(alerts.map((alert) => [alert.communeCode, alert])), [alerts]);
   const outsideMask = useMemo(() => createOutsideMask(provinceBoundary), [provinceBoundary]);
   const provinceBounds = useMemo(() => L.geoJSON(provinceBoundary).getBounds(), [provinceBoundary]);
+  const boundedUserPosition = useMemo(
+    () => userPosition && collectionContainsCoordinates(provinceBoundary, userPosition) ? userPosition : null,
+    [provinceBoundary, userPosition],
+  );
   const approximateLocation = useMemo(() => {
-    if (userPosition || selection?.type !== "commune") return null;
+    if (boundedUserPosition || selection?.type !== "commune") return null;
     const feature = boundaries.features.find((item) => item.properties.code === selection.id);
     if (!feature) return null;
     return { ...representativePointFromFeature(feature), code: feature.properties.code, name: feature.properties.name };
-  }, [boundaries, selection, userPosition]);
+  }, [boundaries, boundedUserPosition, selection]);
 
-  return <MapContainer preferCanvas bounds={provinceBounds} maxBounds={provinceBounds} maxZoom={13} maxBoundsViscosity={1} zoomSnap={0.25} zoomDelta={0.5} zoomControl={false} className="leaflet-map">
+  return <MapContainer preferCanvas bounds={provinceBounds} maxBounds={provinceBounds} maxZoom={MAP_MAX_ZOOM} maxBoundsViscosity={1} inertia={false} bounceAtZoomLimits={false} zoomSnap={0.25} zoomDelta={0.5} zoomControl={false} className="leaflet-map">
     <StaticMapLayers outsideMask={outsideMask} provinceBoundary={provinceBoundary} />
     <CommuneRiskLayer boundaries={boundaries} alertsByCommune={alertsByCommune} filter={filter} selection={selection} onSelect={onSelect} />
     {shelters.map((shelter) => <ShelterMarker key={shelter.id} shelter={shelter} routeOrigin={routeOrigin} onSelect={onSelect} />)}
-    {userPosition && <UserLocationLayer position={userPosition} onSelect={onSelect} />}
+    {boundedUserPosition && <UserLocationLayer position={boundedUserPosition} onSelect={onSelect} />}
     {approximateLocation && <ApproximateLocationMarker location={approximateLocation} onSelect={onSelect} />}
-    <ProvinceViewport bounds={provinceBounds} hasActiveMarkers={Boolean(shelters.length || userPosition)} />
-    <ActiveMarkersViewport shelters={shelters} userPosition={userPosition} approximateLocation={approximateLocation} />
+    <ProvinceViewport bounds={provinceBounds} hasActiveMarkers={Boolean(shelters.length || boundedUserPosition)} />
+    <ActiveMarkersViewport shelters={shelters} userPosition={boundedUserPosition} approximateLocation={approximateLocation} />
   </MapContainer>;
 }
 

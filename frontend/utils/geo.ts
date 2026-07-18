@@ -1,4 +1,4 @@
-import type { Feature, MultiPolygon, Polygon, Position } from "geojson";
+import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Polygon, Position } from "geojson";
 import type { CommuneProperties, Coordinates } from "@/types";
 
 export function haversineKm(from: Coordinates, to: Coordinates): number {
@@ -15,13 +15,19 @@ export function haversineKm(from: Coordinates, to: Coordinates): number {
 type PolygonCoordinates = Polygon["coordinates"];
 
 function pointOnSegment(longitude: number, latitude: number, start: Position, end: Position) {
+  const segmentLongitude = end[0] - start[0];
+  const segmentLatitude = end[1] - start[1];
+  const squaredLength = segmentLongitude ** 2 + segmentLatitude ** 2;
+  if (squaredLength <= Number.EPSILON) {
+    return Math.abs(longitude - start[0]) <= 1e-10 && Math.abs(latitude - start[1]) <= 1e-10;
+  }
+
   const cross = (latitude - start[1]) * (end[0] - start[0]) - (longitude - start[0]) * (end[1] - start[1]);
   if (Math.abs(cross) > 1e-10) return false;
 
   const dot = (longitude - start[0]) * (end[0] - start[0]) + (latitude - start[1]) * (end[1] - start[1]);
   if (dot < 0) return false;
 
-  const squaredLength = (end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2;
   return dot <= squaredLength;
 }
 
@@ -58,11 +64,19 @@ function pointInPolygon(coordinates: Coordinates, rings: PolygonCoordinates) {
 
 /** Returns true when a coordinate lies inside the commune polygon or on its outer boundary. */
 export function featureContainsCoordinates(
-  feature: Feature<Polygon | MultiPolygon, CommuneProperties>,
+  feature: Feature<Polygon | MultiPolygon, GeoJsonProperties>,
   coordinates: Coordinates,
 ) {
   const polygons = feature.geometry.type === "Polygon" ? [feature.geometry.coordinates] : feature.geometry.coordinates;
   return polygons.some((rings) => pointInPolygon(coordinates, rings));
+}
+
+/** Returns true when a coordinate lies inside any polygon in a GeoJSON collection. */
+export function collectionContainsCoordinates(
+  collection: FeatureCollection<Polygon | MultiPolygon, GeoJsonProperties>,
+  coordinates: Coordinates,
+) {
+  return collection.features.some((feature) => featureContainsCoordinates(feature, coordinates));
 }
 
 interface InternalPoint {

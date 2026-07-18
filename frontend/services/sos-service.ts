@@ -1,6 +1,33 @@
-import {sosMock} from "@/mocks/sos.mock"; import {adminRequest,useMocks} from "@/services/adminClient"; import type {SOSRequest,SOSStatus} from "@/types/sos";
-const map=(item:Record<string,unknown>):SOSRequest=>({id:item.id as string,reporterName:item.full_name as string|undefined,reporterPhone:item.phone as string|undefined,latitude:item.lat as number,longitude:item.lon as number,communeId:item.commune_code as string|undefined,communeName:item.commune_name as string|undefined,mappingStatus:item.mapping_status as SOSRequest["mappingStatus"],peopleCount:item.num_people as number,description:(item.note as string|undefined)??"",status:(item.status as string).toUpperCase() as SOSStatus,createdAt:item.created_at as string,audit:item.audit as SOSRequest["audit"]});
-export async function getSos(token?:string,signal?:AbortSignal){if(useMocks)return sosMock;const r=await adminRequest<{data:{items:Record<string,unknown>[]}}>("/api/v1/admin/sos",token,{signal});return r.data.items.map(map)}
-export async function getSosDetail(id:string,token?:string){if(useMocks)return sosMock.find(x=>x.id===id);const r=await adminRequest<{data:Record<string,unknown>}>(`/api/v1/admin/sos/${id}`,token);return map(r.data)}
-export async function updateSosStatus(id:string,status:SOSStatus,token?:string){if(useMocks)return;await adminRequest(`/api/v1/admin/sos/${id}/status`,token,{method:"PATCH",body:JSON.stringify({status:status.toLowerCase()})})}
-export function createGoogleMapsDirectionsUrl(latitude:number,longitude:number){return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${latitude},${longitude}`)}&dir_action=navigate`}
+import { dataGatewayRequest } from "@/services/dataGatewayClient";
+import type { SOSRequest, SOSStatus, SOSSubmission, SOSSubmissionResult } from "@/types/sos";
+
+export function getSos(token?: string, signal?: AbortSignal): Promise<SOSRequest[]> {
+  return dataGatewayRequest("/admin/sos", token, { signal });
+}
+
+export function getSosDetail(id: string, token?: string): Promise<SOSRequest | undefined> {
+  return dataGatewayRequest(`/admin/sos/${encodeURIComponent(id)}`, token);
+}
+
+export async function updateSosStatus(id: string, status: SOSStatus, token?: string): Promise<void> {
+  await dataGatewayRequest(`/admin/sos/${encodeURIComponent(id)}`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ status: status.toLowerCase() }),
+  });
+}
+
+export async function submitSos(payload: SOSSubmission, deviceId: string): Promise<SOSSubmissionResult> {
+  const result = await dataGatewayRequest<SOSSubmissionResult>("/sos", undefined, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "X-Device-ID": deviceId },
+  });
+  if (!result?.id || !result.status || !result.created_at) {
+    throw new Error("API cứu hộ chưa xác nhận mã tín hiệu SOS.");
+  }
+  return result;
+}
+
+export function createGoogleMapsDirectionsUrl(latitude: number, longitude: number) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${latitude},${longitude}`)}&dir_action=navigate`;
+}

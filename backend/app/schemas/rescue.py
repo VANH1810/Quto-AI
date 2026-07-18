@@ -7,6 +7,7 @@ trạng thái tới khi 'resolved'.
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -67,6 +68,8 @@ class SosCreate(BaseModel):
     cccd: str | None = Field(None, description="Nếu có: tự điền tên/SĐT/xã từ DB công dân")
     note: str | None = Field(None, description="Mô tả thêm, vd 'kẹt trên mái nhà 3 người'")
     commune_code: str | None = Field(None, description="Bỏ trống → tự suy từ toạ độ")
+    commune_name: str | None = Field(None, max_length=120, description="Tên xã/phường phía người dân đang hiển thị")
+    reported_at: datetime | None = Field(None, description="Thời điểm thiết bị ghi nhận yêu cầu SOS (ISO 8601)")
 
 
 class RescueRequest(BaseModel):
