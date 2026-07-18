@@ -5,7 +5,9 @@ type AlertTemplate = Omit<
   "id" | "communeCode" | "communeName" | "riskLevel" | "hazard" | "updatedAt"
 >;
 
-const hazardTemplates: Record<HazardType, AlertTemplate> = {
+type MockHazardType = Exclude<HazardType, "frost">;
+
+const hazardTemplates: Record<MockHazardType, AlertTemplate> = {
   flash_flood: {
     hazardLabel: "Lũ quét",
     headline: "Cảnh báo nước suối lên nhanh sau mưa lớn",
@@ -24,12 +26,6 @@ const hazardTemplates: Record<HazardType, AlertTemplate> = {
     detail: "Mưa lớn cục bộ có thể gây ngập vùng trũng, chia cắt đường dân sinh và làm giảm tầm nhìn.",
     recommendedActions: ["Theo dõi bản tin tiếp theo", "Hạn chế đi qua khu vực trũng thấp"],
   },
-  frost: {
-    hazardLabel: "Rét hại",
-    headline: "Nhiệt độ giảm mạnh về đêm",
-    detail: "Khu vực núi cao có thể rét đậm, ảnh hưởng đến người già, trẻ nhỏ, cây trồng và vật nuôi.",
-    recommendedActions: ["Giữ ấm cho người và vật nuôi", "Không dùng bếp than trong phòng kín"],
-  },
   fog: {
     hazardLabel: "Sương mù",
     headline: "Sương mù làm giảm tầm nhìn trên đường đèo",
@@ -38,7 +34,7 @@ const hazardTemplates: Record<HazardType, AlertTemplate> = {
   },
 };
 
-const hazardCycle: HazardType[] = ["fog", "heavy_rain", "landslide", "flash_flood", "frost"];
+const hazardCycle: MockHazardType[] = ["fog", "heavy_rain", "landslide", "flash_flood", "heavy_rain"];
 
 export function createMockAlerts(communes: CommuneCenter[]): CommuneAlert[] {
   return communes.map((commune, index) => {

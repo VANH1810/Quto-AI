@@ -67,7 +67,9 @@ export function buildRegionalForecast(overview: CommuneOverview, currentAlert?: 
     const snapshot = daySnapshots[0];
     const useMapAlert = index === 0 && currentAlert;
     const dayHazard = hazard(useMapAlert ? currentAlert.hazard : snapshot?.hazard);
-    const dayRiskLevel = riskLevel(useMapAlert ? currentAlert.riskLevel : snapshot?.risk_level ?? 1);
+    const dayRiskLevel = dayHazard === "normal"
+      ? 1
+      : riskLevel(useMapAlert ? currentAlert.riskLevel : snapshot?.risk_level ?? 1);
     const risk = RISK_META[dayRiskLevel];
     const hazardLabel = useMapAlert
       ? currentAlert.hazardLabel

@@ -17,7 +17,7 @@
 }
 
 .forecast-layout {
-  --forecast-sidebar-controls-height: calc(18px * 1.2 + 9px + 38px + 9px);
+  --forecast-sidebar-controls-height: 90px;
   width: min(1440px, 100%);
   height: 100%;
   margin: 0 auto;
@@ -44,8 +44,21 @@
 }
 
 .forecast-sidebar h1 {
+  width: 100%;
+  min-height: 34px;
   margin-bottom: 9px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+  text-align: center;
+  background: linear-gradient(90deg, rgba(8, 31, 42, 0), rgba(8, 31, 42, .78) 22%, rgba(8, 31, 42, .78) 78%, rgba(8, 31, 42, 0));
+  border-radius: 10px;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, .8), 0 0 12px rgba(0, 0, 0, .72);
 }
 
 .forecast-location-picker {
@@ -244,9 +257,9 @@
 @media (max-width: 1180px) {
   .forecast-background { overflow-y: auto; }
   .forecast-layout { height: auto; min-height: 100%; grid-template-columns: 1fr; gap: 10px; }
-  .forecast-sidebar { display: grid; grid-template-columns: auto minmax(230px, 310px); align-items: center; gap: 8px 16px; }
+  .forecast-sidebar { display: grid; grid-template-columns: 1fr; align-items: center; gap: 8px; }
   .forecast-sidebar h1 { margin: 0; }
-  .forecast-location-picker { margin: 0; }
+  .forecast-location-picker { width: min(100%, 420px); margin: 0; }
   .forecast-day-list { grid-column: 1 / -1; margin: 0 -20px; padding: 2px 20px 6px; display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; }
   .forecast-day-list > div,
   .forecast-day-skeleton { flex: 0 0 224px; scroll-snap-align: start; }
@@ -261,7 +274,6 @@
 @media (max-width: 760px) {
   .forecast-layout { padding-inline: 14px; }
   .forecast-sidebar { grid-template-columns: 1fr; }
-  .forecast-location-picker { width: min(100%, 420px); }
   .forecast-day-list { margin-inline: -14px; padding-inline: 14px; }
   .forecast-overview { padding: 18px; grid-template-columns: 1fr; gap: 18px; }
   .forecast-current { display: grid; grid-template-columns: 1fr auto; align-items: center; text-align: left; }
@@ -280,7 +292,7 @@
   .forecast-shell { height: auto; min-height: 100dvh; overflow: visible; }
   .forecast-background { min-height: calc(100dvh - 60px); overflow: visible; }
   .forecast-layout { padding: 12px 10px 18px; }
-  .forecast-sidebar h1 { font-size: 17px; }
+  .forecast-sidebar h1 { min-height: 32px; padding-block: 4px; font-size: 18px; }
   .forecast-location-picker { width: 100%; }
   .forecast-day-list { margin-inline: -10px; padding-inline: 10px; }
   .forecast-day-list > div,
