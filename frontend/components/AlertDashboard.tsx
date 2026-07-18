@@ -6,8 +6,8 @@ import { AlertTriangle, LocateFixed, RefreshCw } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { MapLegend } from "@/components/MapLegend";
 import { SearchSidebar } from "@/components/SearchSidebar";
+import { useSharedLocation } from "@/contexts/LocationContext";
 import { useAlertData } from "@/hooks/useAlertData";
-import { useGeolocation } from "@/hooks/useGeolocation";
 import type { Coordinates, RiskFilter, SelectedPlace } from "@/types";
 import { featureContainsCoordinates, representativePointFromFeature } from "@/utils/geo";
 
@@ -24,16 +24,30 @@ const USER_SELECTION: SelectedPlace = { type: "user", id: "current" };
 
 export function AlertDashboard() {
   const { data, error, isLoading } = useAlertData();
-  const { position, error: locationError, isLocating, locate } = useGeolocation();
-  const [query, setQuery] = useState("");
+  const {
+    position,
+    locationError,
+    isLocating,
+    query,
+    selectedCommuneCode,
+    changeQuery: changeSharedQuery,
+    selectCommune: selectSharedCommune,
+    clearCommune: clearSharedCommune,
+    locateCurrentPosition: locateSharedPosition,
+  } = useSharedLocation();
   const [filter, setFilter] = useState<RiskFilter>("all");
   const [selection, setSelection] = useState<SelectedPlace | null>(null);
-  const [selectedCommuneCode, setSelectedCommuneCode] = useState<string | null>(null);
   const hasDetailSelection = selection?.type === "commune" || selection?.type === "shelter";
   const [isDetailColumnVisible, setIsDetailColumnVisible] = useState(hasDetailSelection);
 
   useEffect(() => {
-    if (position && !selectedCommuneCode) setSelection(USER_SELECTION);
+    if (selectedCommuneCode) {
+      setSelection((current) => current?.type === "commune" && current.id === selectedCommuneCode
+        ? current
+        : { type: "commune", id: selectedCommuneCode });
+    } else if (position) {
+      setSelection(USER_SELECTION);
+    }
   }, [position, selectedCommuneCode]);
 
   useEffect(() => {
@@ -66,11 +80,6 @@ export function AlertDashboard() {
     return feature ? representativePointFromFeature(feature) : null;
   }, [data, position, selectedCommuneCode]);
 
-  const selectCommune = useCallback((code: string) => {
-    setSelectedCommuneCode(code);
-    setSelection({ type: "commune", id: code });
-  }, []);
-
   const resetToUserPosition = useCallback(() => {
     setSelection((current) => {
       if (position) return current?.type === "user" ? current : USER_SELECTION;
@@ -79,26 +88,22 @@ export function AlertDashboard() {
   }, [position]);
 
   const clearCommune = useCallback(() => {
-    setQuery("");
-    setSelectedCommuneCode(null);
+    clearSharedCommune();
     resetToUserPosition();
-  }, [resetToUserPosition]);
+  }, [clearSharedCommune, resetToUserPosition]);
 
   const locateCurrentPosition = useCallback(() => {
-    setQuery("");
-    setSelectedCommuneCode(null);
     resetToUserPosition();
-    locate();
-  }, [locate, resetToUserPosition]);
+    locateSharedPosition();
+  }, [locateSharedPosition, resetToUserPosition]);
 
   const selectMapPlace = useCallback((place: SelectedPlace) => {
     if (place.type === "commune") {
       const commune = data?.communeCenters.find((item) => item.code === place.id);
-      if (commune) setQuery(commune.name);
-      setSelectedCommuneCode(place.id);
+      if (commune) selectSharedCommune(commune.code, commune.name);
     }
     setSelection(place);
-  }, [data]);
+  }, [data, selectSharedCommune]);
 
   const changeFilter = useCallback((nextFilter: RiskFilter) => {
     setFilter(nextFilter);
@@ -109,16 +114,15 @@ export function AlertDashboard() {
   }, [resetToUserPosition]);
 
   const changeQuery = useCallback((value: string) => {
-    setQuery(value);
-    setSelectedCommuneCode(null);
+    changeSharedQuery(value);
     resetToUserPosition();
-  }, [resetToUserPosition]);
+  }, [changeSharedQuery, resetToUserPosition]);
 
   const selectSidebarCommune = useCallback((code: string) => {
     const commune = data?.communeCenters.find((item) => item.code === code);
-    if (commune) setQuery(commune.name);
-    selectCommune(code);
-  }, [data, selectCommune]);
+    if (commune) selectSharedCommune(commune.code, commune.name);
+    setSelection({ type: "commune", id: code });
+  }, [data, selectSharedCommune]);
 
   const selectShelter = useCallback((id: string) => {
     setSelection({ type: "shelter", id });
