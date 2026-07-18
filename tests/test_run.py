@@ -4,6 +4,7 @@ import pytest
 import nowcast.model
 from conftest import StubModel
 from nowcast import run_nowcast
+from nowcast.grid_constants import GRID_SHAPE
 
 
 def test_end_to_end_and_input_errors(monkeypatch, grids, timestamp, masks):
@@ -13,7 +14,7 @@ def test_end_to_end_and_input_errors(monkeypatch, grids, timestamp, masks):
     results = run_nowcast(grids, timestamp, masks)
     assert len(results) == 2
     assert results[0].rain_6h_mm == 15.0
-    assert model.last_shape == (20, 1, 14)
+    assert model.last_shape == (GRID_SHAPE[0] * GRID_SHAPE[1], 1, 14)
 
     missing = dict(grids)
     missing.pop("AWS2")

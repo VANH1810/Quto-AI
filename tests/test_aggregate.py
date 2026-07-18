@@ -1,10 +1,11 @@
 import numpy as np
 
 from nowcast.aggregate import aggregate_communes
+from nowcast.grid_constants import GRID_SHAPE
 
 
 def test_max_valid_pixel_fraction_and_coverage_floor(masks):
-    valid = np.ones((4, 5), dtype=bool)
+    valid = np.ones(GRID_SHAPE, dtype=bool)
     valid[:, 3:] = False
     index = np.argwhere(valid)
     predictions = np.ones((len(index), 6), dtype=np.float32)

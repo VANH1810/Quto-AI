@@ -1,6 +1,7 @@
 import numpy as np
 
 from nowcast.features import build_features
+from nowcast.grid_constants import GRID_SHAPE
 
 
 def test_feature_order_scaling_time_and_nan(grids, timestamp):
@@ -9,7 +10,7 @@ def test_feature_order_scaling_time_and_nan(grids, timestamp):
     scale = np.full(14, 2.0)
     features, valid, index = build_features(grids, timestamp, mean, scale)
 
-    assert features.shape == (19, 1, 14)
+    assert features.shape == (GRID_SHAPE[0] * GRID_SHAPE[1] - 1, 1, 14)
     assert not valid[1, 2]
     assert tuple(index[0]) == (0, 0)
     expected_weather = (np.arange(1, 11) - np.arange(10)) / 2

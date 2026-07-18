@@ -1,5 +1,16 @@
-LAT0: float = 0.0  # TODO: set top-left cell-center latitude with the team
-LON0: float = 0.0  # TODO: set top-left cell-center longitude with the team
+# Điện Biên province window: lat [21.00, 22.60], lon [102.10, 103.62] at 0.04°.
+# Values are CELL CENTERS. Row 0 is the NORTHERNMOST row (latitude decreases as
+# the row index grows); column 0 is the westernmost column. This block is the
+# single place the orientation convention is asserted — everything else
+# (mask builder, grid fetcher) derives coordinates from these constants.
+LAT0: float = 22.58
+LON0: float = 102.12
 DLAT: float = 0.04
 DLON: float = 0.04
-GRID_SHAPE: tuple[int, int] = (4, 5)  # TODO: set Điện Biên (H, W) with the team
+GRID_SHAPE: tuple[int, int] = (40, 38)
+
+_LAT_LAST = LAT0 - (GRID_SHAPE[0] - 1) * DLAT
+_LON_LAST = LON0 + (GRID_SHAPE[1] - 1) * DLON
+assert _LAT_LAST < LAT0, "row 0 must be the northernmost row"
+assert 21.0 <= _LAT_LAST < LAT0 <= 22.6, "latitude window must stay inside Dien Bien"
+assert 102.1 <= LON0 < _LON_LAST <= 103.62, "longitude window must stay inside Dien Bien"

@@ -8,6 +8,7 @@ import pytest
 
 from nowcast.aggregate import CommuneMasks
 from nowcast.features import FEATURE_ORDER, WEATHER_FEATURES
+from nowcast.grid_constants import GRID_SHAPE
 
 
 class StubModel:
@@ -29,7 +30,7 @@ class StubModel:
 @pytest.fixture
 def grids() -> dict[str, np.ndarray]:
     return {
-        name: np.full((4, 5), index + 1, dtype=np.float32)
+        name: np.full(GRID_SHAPE, index + 1, dtype=np.float32)
         for index, name in enumerate(WEATHER_FEATURES)
     }
 
@@ -41,9 +42,9 @@ def timestamp() -> datetime:
 
 @pytest.fixture
 def masks() -> CommuneMasks:
-    first = np.zeros((4, 5), dtype=bool)
+    first = np.zeros(GRID_SHAPE, dtype=bool)
     first[:, :3] = True
-    second = np.zeros((4, 5), dtype=bool)
+    second = np.zeros(GRID_SHAPE, dtype=bool)
     second[:, 3:] = True
     return CommuneMasks({"03136": first, "03151": second})
 
