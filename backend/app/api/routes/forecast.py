@@ -74,7 +74,7 @@ async def commune_overview_by_id(commune_id: str, response: Response) -> Commune
 
 
 @router.get("/forecast/{code}", response_model=ForecastResponse,
-            summary="2.2 · Dự báo 3–7 ngày cho 1 xã")
+            summary="2.2 · Dự báo 1–7 ngày cho 1 xã")
 async def forecast(code: str, days: int = Query(7, ge=1, le=16)) -> ForecastResponse:
     """Dự báo đã hạ quy mô về 1 xã (Open-Meteo, fallback synthetic khi offline).
 
