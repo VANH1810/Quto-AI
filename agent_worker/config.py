@@ -11,8 +11,11 @@ class WorkerSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Hạ tầng
+    #   Broker Celery: mặc định DÙNG REDIS (1 hạ tầng cho cả broker + result → free-host dễ,
+    #   ít RAM, ổn định hơn). Muốn RabbitMQ thì set CELERY_BROKER_URL=amqp://...
     rabbitmq_url: str = "amqp://guest:guest@rabbitmq:5672/"
     redis_url: str = "redis://redis:6379/0"
+    celery_broker_url: str = ""   # rỗng → dùng redis_url làm broker
     database_url: str = "postgresql+asyncpg://quto:quto@postgres:5432/quto"
 
     # LLM (mock | openai | gemini) — dùng bởi shared/llm.py
@@ -42,6 +45,11 @@ class WorkerSettings(BaseSettings):
     # Tuning
     prefetch: int = 8
     dispatch_max_retry: int = 3
+
+    @property
+    def broker_url(self) -> str:
+        """Broker Celery hiệu dụng: CELERY_BROKER_URL nếu đặt, ngược lại dùng Redis."""
+        return self.celery_broker_url or self.redis_url
 
 
 @lru_cache

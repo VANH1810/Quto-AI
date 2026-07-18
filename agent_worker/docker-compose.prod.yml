@@ -1,0 +1,91 @@
+# PROD — AI service TỰ CHỨA, gọn cho VM free (Oracle Cloud Always Free / bất kỳ VPS).
+# KHÔNG RabbitMQ: broker = Redis (1 hạ tầng cho broker + result → ít RAM, ổn định).
+#
+#   cd agent_worker
+#   cp .env.prod.example .env        # sửa DATABASE_URL/LLM/ZALO nếu cần
+#   docker compose -f docker-compose.prod.yml up -d --build
+#     API AI  : http://<IP-VM>:8100/docs
+#   Có domain + HTTPS tự động (Caddy):
+#     DOMAIN=ai.tenmien.vn docker compose -f docker-compose.prod.yml --profile tls up -d --build
+#     → https://ai.tenmien.vn  (mở cổng 80/443 trên VM)
+#
+# Data plane: mặc định Postgres nội bộ (self-contained). Để FE thấy notifications qua
+# Supabase Realtime → set DATABASE_URL trỏ vào Supabase Postgres (xem DEPLOY.md).
+
+x-app-env: &app-env
+  REDIS_URL: redis://redis:6379/0
+  # CELERY_BROKER_URL bỏ trống → dùng Redis làm broker.
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://quto:quto@postgres:5432/quto}
+  LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  HUMAN_APPROVAL_MIN_LEVEL: ${HUMAN_APPROVAL_MIN_LEVEL:-3}
+  ZALO_PROVIDER: ${ZALO_PROVIDER:-mock}
+  ZALO_OA_ID: ${ZALO_OA_ID:-}
+  ZALO_APP_ID: ${ZALO_APP_ID:-}
+  ZALO_SECRET: ${ZALO_SECRET:-}
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Postgres nội bộ — chỉ dùng khi KHÔNG trỏ DATABASE_URL sang Supabase.
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: quto
+      POSTGRES_PASSWORD: quto
+      POSTGRES_DB: quto
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quto"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  agent-api:
+    build: {context: ., dockerfile: Dockerfile}
+    restart: unless-stopped
+    command: ["uvicorn", "agent_worker.api:app", "--host", "0.0.0.0", "--port", "8100"]
+    environment: *app-env
+    ports: ["8100:8100"]
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+  agent-worker:
+    build: {context: ., dockerfile: Dockerfile}
+    restart: unless-stopped
+    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "agent", "--loglevel=info", "--concurrency=4"]
+    environment: *app-env
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+  dispatch-worker:
+    build: {context: ., dockerfile: Dockerfile}
+    restart: unless-stopped
+    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "dispatch", "--loglevel=info", "--concurrency=4"]
+    environment: *app-env
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+  # HTTPS tự động (chỉ chạy với --profile tls + có DOMAIN trỏ về IP VM).
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["tls"]
+    ports: ["80:80", "443:443"]
+    command: ["caddy", "reverse-proxy", "--from", "${DOMAIN:-localhost}", "--to", "agent-api:8100"]
+    depends_on: [agent-api]
+
+volumes:
+  pgdata:

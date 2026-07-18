@@ -51,6 +51,9 @@ services:
       dockerfile: Dockerfile
     command: ["uvicorn", "agent_worker.api:app", "--host", "0.0.0.0", "--port", "8100"]
     environment: &worker_env
+      # Dev vẫn dùng RabbitMQ làm broker (đặt tường minh; prod dùng Redis, xem
+      # docker-compose.prod.yml). Bỏ dòng này → tự động chuyển broker sang Redis.
+      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql+asyncpg://quto:quto@postgres:5432/quto

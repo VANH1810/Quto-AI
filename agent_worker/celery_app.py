@@ -1,12 +1,13 @@
-"""Celery app — broker = RabbitMQ (điều phối tin cậy), result backend = Redis (polling).
+"""Celery app — broker + result backend.
+
+Mặc định: broker = Redis, result backend = Redis (1 hạ tầng → free-host dễ, ít RAM,
+ổn định). Muốn dùng RabbitMQ (ack/retry/DLQ) thì set CELERY_BROKER_URL=amqp://...
 
 Chạy worker:
   celery -A agent_worker.celery_app worker -Q agent    --loglevel=info   # agent job (LLM)
   celery -A agent_worker.celery_app worker -Q dispatch --loglevel=info   # gửi đa kênh
 
 Polling: dùng AsyncResult(task_id).state + .info/.result (metadata bơm qua update_state).
-RabbitMQ = broker (ack/retry/DLQ chắc chắn cho task LLM chạy lâu); Redis = nơi lưu
-trạng thái + kết quả để BackEnd Services polling.
 """
 
 from __future__ import annotations
@@ -19,7 +20,8 @@ _s = get_worker_settings()
 
 app = Celery(
     "quto_agent",
-    broker=_s.rabbitmq_url,
+    broker=_s.broker_url,
+    # broker=_s.rabbitmq_url,
     backend=_s.redis_url,
     include=["agent_worker.tasks"],
 )
