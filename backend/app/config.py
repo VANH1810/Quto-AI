@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     # Cấp độ tối thiểu cần người duyệt trước khi gửi (1..5). 3 = cam.
     human_approval_min_level: int = 3
 
+    # AI Agent service (agent_worker). Nhóm 5 (Cảnh báo) chạy theo:
+    #   local  = AI nội bộ trong backend (mặc định — KHÔNG đổi hành vi bản đang chạy).
+    #   remote = uỷ thác cho agent_worker qua HTTP (LangGraph + Celery). Cần agent_base_url.
+    agent_mode: str = "local"          # local | remote
+    agent_base_url: str = ""           # vd http://<IP-VM>:8100 hoặc https://ai.tenmien.vn
+    agent_timeout_seconds: float = 130.0
+
     # JWT
     jwt_secret: str = "dev-secret-doi-truoc-khi-len-that"
     jwt_algorithm: str = "HS256"

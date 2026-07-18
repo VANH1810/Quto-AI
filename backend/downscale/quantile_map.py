@@ -1,13 +1,3 @@
-"""Per-commune quantile mapping of forecast precipitation.
-
-Artifacts `qm_<code>.json` hold 21 daily-total quantile pairs (forecast vs
-"truth"). Correction happens at DAILY granularity: each local day's forecast
-total is mapped through the quantile curve and the resulting ratio scales that
-day's hourly values, preserving sub-daily structure. A missing artifact means
-IDENTITY — live must run on day one without artifacts — and the mode is
-reported in provenance so nobody mistakes uncorrected output for corrected.
-"""
-
 from __future__ import annotations
 
 import json

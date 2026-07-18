@@ -1,8 +1,3 @@
-# Điện Biên province window: lat [21.00, 22.60], lon [102.10, 103.62] at 0.04°.
-# Values are CELL CENTERS. Row 0 is the NORTHERNMOST row (latitude decreases as
-# the row index grows); column 0 is the westernmost column. This block is the
-# single place the orientation convention is asserted — everything else
-# (mask builder, grid fetcher) derives coordinates from these constants.
 LAT0: float = 22.58
 LON0: float = 102.12
 DLAT: float = 0.04

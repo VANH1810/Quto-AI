@@ -1,8 +1,3 @@
-"""Điểm vào FastAPI — BẢN TIN AN TOÀN (hệ cảnh báo sớm thiên tai Điện Biên).
-
-Chạy:  uvicorn app.main:app --reload  → http://localhost:8000/docs
-"""
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse

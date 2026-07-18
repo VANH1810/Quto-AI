@@ -7,15 +7,21 @@ Loa ngoại tuyến → gửi lại (5.5); ai không nhận được thì xử l
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.agents import orchestrator, risk_engine
-from app.providers import weather
+from app.config import get_settings
+from app.providers import agent_client, weather
 from app.schemas.admin import AdminPublic
-from app.schemas.alert import Alert, ApproveRequest
+from app.schemas.alert import Alert, ApproveRequest, AlertStatus
 from app.security import get_current_admin
 from app.services.alerts import alerts_store
 from app.services.geo_data import get_commune
 
 router = APIRouter(prefix="/api/v1/alerts", tags=["5 · Cảnh báo (AI Agent)"],
                    dependencies=[Depends(get_current_admin)])
+
+
+def _remote() -> bool:
+    """True nếu uỷ thác AI cho agent_worker (AGENT_MODE=remote)."""
+    return get_settings().agent_mode == "remote"
 
 
 @router.post("/scan/{code}", response_model=list[Alert],
@@ -27,10 +33,22 @@ async def scan_commune(code: str, days: int = 3) -> list[Alert]:
 
     **Output**: mảng `Alert` vừa tạo — mỗi cái có `event`, `bulletins` (vi/tai/hmn),
     `status` (`pending_approval` nếu cấp ≥3, ngược lại `approved`).
+
+    *AGENT_MODE=remote*: uỷ thác cho agent_worker (LangGraph) — trả cảnh báo cấp cao nhất
+    (theo `days` cố định 7 của agent), lưu vào store để 5.2–5.4 đọc.
     """
     commune = get_commune(code)
     if commune is None:
         raise HTTPException(404, f"Không có xã mã '{code}'")
+
+    if _remote():
+        alert = await agent_client.create_alert(code)
+        if alert is None:                       # agent báo no_risk
+            return []
+        alerts_store.save(alert)
+        alerts_store.log(alert.id, "agent", f"agent_worker tạo cảnh báo ({alert.status.value}).")
+        return [alert]
+
     fc = await weather.get_forecast(commune, days)
     events = risk_engine.evaluate(fc, commune)
     return [await orchestrator.create_alert(ev) for ev in events]
@@ -65,6 +83,22 @@ async def approve(alert_id: str, body: ApproveRequest,
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")
+
+    if _remote():
+        if body.approve:
+            res = await agent_client.approve(alert_id, admin.id, body.edited_body_vi)
+            a.status = AlertStatus.sent
+            a.approved_by = admin.id
+            alerts_store.log(alert_id, "approve",
+                             f"{admin.id} duyệt → agent_worker gửi ({res.get('dispatched', '?')} tin).")
+        else:
+            await agent_client.reject(alert_id, admin.id, body.note)
+            a.status = AlertStatus.rejected
+            a.approved_by = admin.id
+            alerts_store.log(alert_id, "reject", f"{admin.id} bác bỏ. {body.note or ''}".strip())
+        alerts_store.save(a)
+        return a
+
     if body.approve:
         return await orchestrator.approve_and_dispatch(a, admin.id, body.edited_body_vi)
     return await orchestrator.reject(a, admin.id, body.note)
@@ -77,4 +111,8 @@ async def retry(alert_id: str) -> Alert:
     a = alerts_store.get(alert_id)
     if a is None:
         raise HTTPException(404, "Không tìm thấy cảnh báo")
+    if _remote():
+        # agent_worker tự retry (dispatch_max_retry) rồi tạo task đến-tận-nhà — không retry thủ công.
+        alerts_store.log(alert_id, "retry", "Chế độ agent_worker: gửi lại/đến-tận-nhà tự động ở dispatch-worker.")
+        return a
     return await orchestrator.retry_failed(a)

@@ -1,10 +1,3 @@
-"""Open-Meteo client: batched commune point forecasts + stride-2 nowcast grids.
-
-Politeness rules are structural: one batched point call, grid chunks of <=100
-locations spaced 0.5 s apart, sha256 disk cache keyed per UTC hour, and a
-replay transport that never touches the network.
-"""
-
 from __future__ import annotations
 
 import json
