@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Nguồn thời tiết: openmeteo | mock
     weather_provider: str = "openmeteo"
     openmeteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_timeout_seconds: float = 12.0
+    weather_cache_ttl_seconds: int = 600
+    commune_overview_cache_ttl_seconds: int = 300
 
     # LLM: mock | openai | gemini | local
     llm_provider: str = "mock"

@@ -9,8 +9,11 @@ Nếu WEATHER_PROVIDER=mock, hoặc gọi online lỗi → sinh dữ liệu tấ
 
 from __future__ import annotations
 
+import asyncio
 import math
+from dataclasses import dataclass
 from datetime import date, timedelta
+from time import monotonic
 
 import httpx
 
@@ -22,17 +25,58 @@ _DAILY = "precipitation_sum,temperature_2m_max,temperature_2m_min,temperature_2m
 _HOURLY = "relative_humidity_2m,visibility"
 
 
+@dataclass
+class _CacheEntry:
+    forecast: ForecastResponse
+    expires_at: float
+
+
+_CACHE: dict[tuple[str, str, int], _CacheEntry] = {}
+_LOCKS: dict[tuple[str, str, int], asyncio.Lock] = {}
+
+
+def clear_cache() -> None:
+    _CACHE.clear()
+    _LOCKS.clear()
+
+
 async def get_forecast(commune: Commune, days: int = 7) -> ForecastResponse:
+    """Fetch a forecast with bounded TTL caching and per-key request coalescing."""
+    settings = get_settings()
+    days = max(1, min(days, 16))
+    key = (settings.weather_provider.lower(), commune.code, days)
+    now = monotonic()
+    cached = _CACHE.get(key)
+    if cached is not None and cached.expires_at > now:
+        return cached.forecast.model_copy(deep=True)
+
+    lock = _LOCKS.setdefault(key, asyncio.Lock())
+    async with lock:
+        cached = _CACHE.get(key)
+        now = monotonic()
+        if cached is not None and cached.expires_at > now:
+            return cached.forecast.model_copy(deep=True)
+
+        forecast = await _fetch_forecast(commune, days)
+        ttl = max(0, settings.weather_cache_ttl_seconds)
+        if ttl > 0:
+            _CACHE[key] = _CacheEntry(forecast=forecast.model_copy(deep=True), expires_at=now + ttl)
+        return forecast
+
+
+async def _fetch_forecast(commune: Commune, days: int = 7) -> ForecastResponse:
     settings = get_settings()
     if settings.weather_provider.lower() == "openmeteo":
         try:
-            return await _openmeteo(commune, days, settings.openmeteo_base_url)
+            return await _openmeteo(commune, days, settings.openmeteo_base_url,
+                                    settings.weather_timeout_seconds)
         except Exception:  # noqa: BLE001 — offline/timeout → không để demo chết
             pass
     return _synthetic(commune, days)
 
 
-async def _openmeteo(commune: Commune, days: int, base_url: str) -> ForecastResponse:
+async def _openmeteo(commune: Commune, days: int, base_url: str,
+                     timeout_seconds: float = 12.0) -> ForecastResponse:
     params = {
         "latitude": commune.lat,
         "longitude": commune.lon,
@@ -43,7 +87,7 @@ async def _openmeteo(commune: Commune, days: int, base_url: str) -> ForecastResp
         "forecast_days": max(1, min(days, 16)),
         "models": "best_match",
     }
-    async with httpx.AsyncClient(timeout=12) as client:
+    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
         r = await client.get(base_url, params=params)
         r.raise_for_status()
         data = r.json()

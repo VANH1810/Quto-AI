@@ -22,7 +22,7 @@ import {
 import type { CommuneAlert, CommuneCenter, Coordinates, HazardType, SelectedPlace, Shelter } from "@/types";
 import { googleMapsDirectionsUrl } from "@/utils/directions";
 import { RISK_META } from "@/utils/risk";
-import { SHELTER_KIND_LABELS } from "@/utils/shelter";
+import { formatShelterCapacity, SHELTER_KIND_LABELS } from "@/utils/shelter";
 
 interface DetailPanelProps {
   selection: SelectedPlace | null;
@@ -101,7 +101,7 @@ export const DetailPanel = memo(function DetailPanel({ selection, alerts, commun
           <div className="shelter-facts">
             <span><MapPinned size={18} /><b>Địa chỉ</b><small>{selectedShelter.address}</small></span>
             <span><Building2 size={18} /><b>Loại địa điểm</b><small>{SHELTER_KIND_LABELS[selectedShelter.kind]}</small></span>
-            <span><Users size={18} /><b>Sức chứa dự kiến</b><small>{selectedShelter.capacity ? `${selectedShelter.capacity} người` : "Chưa có dữ liệu xác minh"}</small></span>
+            <span><Users size={18} /><b>Sức chứa dự kiến</b><small>{formatShelterCapacity(selectedShelter)}</small></span>
             <span><Navigation size={18} /><b>Tọa độ đích</b><small>{selectedShelter.lat}, {selectedShelter.lon}</small></span>
           </div>
           <div className="current-risk" style={{ "--detail-accent": risk.color } as DetailPanelStyle}>
@@ -133,11 +133,10 @@ export const DetailPanel = memo(function DetailPanel({ selection, alerts, commun
           <h2>{selectedCommune.name}</h2>
         </div>
         <button type="button" className="detail-close" onClick={onClose} aria-label="Đóng bảng chi tiết"><X size={20} /></button>
-        <div className="alert-level-row">
+        <div className="alert-risk-summary">
           <span className="detail-icon"><HazardIcon size={23} strokeWidth={2} /></span>
-          <span><strong>Cấp {selectedAlert.riskLevel}</strong><small>{risk.shortLabel}</small></span>
+          <strong>{selectedAlert.hazardLabel} – Cấp {selectedAlert.riskLevel}</strong>
         </div>
-        <div className="hazard-badge"><HazardIcon size={16} strokeWidth={2} /> {selectedAlert.hazardLabel}</div>
       </div>
       <div className="detail-body alert-detail-body">
         <h3>{selectedAlert.headline}</h3>
@@ -155,7 +154,7 @@ export const DetailPanel = memo(function DetailPanel({ selection, alerts, commun
         {communeShelters[0] && (
           <button className="nearest-shelter" onClick={() => onSelectShelter(communeShelters[0].id)}>
             <Building2 size={20} />
-            <span><small>Điểm trú ẩn đề xuất</small><strong>{communeShelters[0].name}</strong><em>{communeShelters[0].capacity ? `Sức chứa ${communeShelters[0].capacity} người` : "Sức chứa chưa có dữ liệu xác minh"}</em></span>
+            <span><small>Điểm trú ẩn đề xuất</small><strong>{communeShelters[0].name}</strong><em>Sức chứa {formatShelterCapacity(communeShelters[0])}</em></span>
             <ArrowRight size={18} />
           </button>
         )}

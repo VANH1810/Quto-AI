@@ -8,7 +8,7 @@ import type { CommuneAlert, CommuneGeoJSON, CommuneProperties, Coordinates, Dash
 import { googleMapsDirectionsUrl } from "@/utils/directions";
 import { representativePointFromFeature } from "@/utils/geo";
 import { RISK_META } from "@/utils/risk";
-import { SHELTER_KIND_LABELS } from "@/utils/shelter";
+import { formatShelterCapacity, SHELTER_KIND_LABELS } from "@/utils/shelter";
 
 interface MapCanvasProps extends DashboardData {
   filter: RiskFilter;
@@ -198,7 +198,7 @@ function MapCanvas({ provinceBoundary, boundaries, alerts, shelters, filter, sel
     layer.on({ click: () => onSelect({ type: "commune", id: feature.properties.code }) });
     layer.bindPopup(
       `<div class="polygon-popup"><small>${escapeHtml(risk.label)}</small><strong>${escapeHtml(feature.properties.name)}</strong><span>${escapeHtml(alert.hazardLabel)} · ${escapeHtml(alert.headline)}</span><b>Xem hướng dẫn an toàn →</b></div>`,
-      { closeButton: false, offset: [0, -4] },
+      { className: "map-popup", closeButton: true, offset: [0, -4] },
     );
   }, [alertsByCommune, onSelect]);
 
@@ -239,12 +239,12 @@ function MapCanvas({ provinceBoundary, boundaries, alerts, shelters, filter, sel
 
       {shelters.map((shelter) => (
         <Marker key={shelter.id} position={[shelter.lat, shelter.lon]} icon={shelterIcon} eventHandlers={{ click: () => onSelect({ type: "shelter", id: shelter.id }) }}>
-          <Popup>
+          <Popup className="map-popup">
             <div className="marker-popup">
               <small>{SHELTER_KIND_LABELS[shelter.kind]}</small>
               <strong>{shelter.name}</strong>
-              <span>{shelter.communeName}</span>
-              <span>{shelter.address}</span>
+              <span className="marker-popup-address">{shelter.address}</span>
+              <span className="marker-popup-capacity">Sức chứa {formatShelterCapacity(shelter)}</span>
               <p>Tọa độ: {shelter.lat}, {shelter.lon}</p>
               <a
                 className="marker-directions"
