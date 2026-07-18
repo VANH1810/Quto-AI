@@ -54,9 +54,23 @@ services:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql+asyncpg://quto:quto@postgres:5432/quto
-      LLM_PROVIDER: mock
-      HUMAN_APPROVAL_MIN_LEVEL: "3"
-      ZALO_PROVIDER: mock
+      LLM_PROVIDER: ${LLM_PROVIDER:-fpt}              # openai | local | fpt (agent cần tool-calling)
+      FPT_API_KEY: ${FPT_API_KEY:-}
+      FPT_BASE_URL: ${FPT_BASE_URL:-https://mkp-api.fptcloud.com/v1/}
+      FPT_MODEL: ${FPT_MODEL:-DeepSeek-V4-Flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      HUMAN_APPROVAL_MIN_LEVEL: ${HUMAN_APPROVAL_MIN_LEVEL:-3}
+      WEATHER_PROVIDER: ${WEATHER_PROVIDER:-openmeteo}  # 'mock' = luôn mưa lớn (demo cảnh báo)
+      MOCK_PRECIP_MM: ${MOCK_PRECIP_MM:-220}
+      ROUTE_PROVIDER: ${ROUTE_PROVIDER:-none}          # 'serpapi' để bật km/phút + POI
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+      TELEGRAM_PROVIDER: ${TELEGRAM_PROVIDER:-mock}   # 'live' để gửi Telegram thật
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      BACKEND_URL: http://host.docker.internal:8000   # callback về backend (host)
+      SERVICE_TOKEN: doi-chuoi-bi-mat-nay             # == SERVICE_TOKEN của backend
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["8100:8100"]
     depends_on:
       rabbitmq: {condition: service_healthy}
@@ -68,20 +82,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "agent", "--loglevel=info", "--concurrency=4"]
+    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "agent", "--pool=threads", "--concurrency=16", "--loglevel=info"]
     environment: *worker_env
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       rabbitmq: {condition: service_healthy}
       redis: {condition: service_healthy}
       postgres: {condition: service_healthy}
 
-  # Celery worker: gửi đa kênh (Zalo/SMS/loa). Queue 'dispatch'.
+  # Celery worker: gửi đa kênh (Zalo/SMS/loa). Queue 'dispatch' — làm callback về backend.
   dispatch-worker:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "dispatch", "--loglevel=info", "--concurrency=4"]
+    command: ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "dispatch", "--pool=threads", "--concurrency=32", "--loglevel=info"]
     environment: *worker_env
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       rabbitmq: {condition: service_healthy}
       redis: {condition: service_healthy}

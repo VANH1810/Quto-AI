@@ -8,19 +8,26 @@
 -- (A) DỮ LIỆU ------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.citizens (
-  cccd             text NOT NULL,
-  full_name        text NOT NULL,
-  age              integer,
-  address          text,
-  phone            text,
-  ethnicity        text,
-  commune_code     text,
-  lat              double precision,
-  lon              double precision,
-  consent_zalo_sms boolean DEFAULT true,
-  preferred_lang   text DEFAULT 'vi',
+  cccd                text NOT NULL,
+  full_name           text NOT NULL,
+  age                 integer,
+  address             text,
+  phone               text,
+  ethnicity           text,
+  commune_code        text,
+  lat                 double precision,
+  lon                 double precision,
+  consent_zalo_sms    boolean DEFAULT true,
+  preferred_lang      text DEFAULT 'vi',
+  telegram_chat_id    text,
+  telegram_link_token text,
   CONSTRAINT citizens_pkey PRIMARY KEY (cccd)
 );
+-- Cột Telegram (thêm cho DB đã tồn tại — idempotent).
+ALTER TABLE public.citizens ADD COLUMN IF NOT EXISTS telegram_chat_id text;
+ALTER TABLE public.citizens ADD COLUMN IF NOT EXISTS telegram_link_token text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_citizens_tg_token
+  ON public.citizens(telegram_link_token) WHERE telegram_link_token IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.admins (
   id         text NOT NULL,

@@ -22,4 +22,4 @@ RUN useradd -m -u 10001 worker
 USER worker
 
 # Mặc định: worker queue 'agent'. dispatch worker override command trong compose.
-CMD ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "agent", "--loglevel=info"]
+CMD ["celery", "-A", "agent_worker.celery_app", "worker", "-Q", "agent", "--pool=threads", "--concurrency=16", "--loglevel=info"]

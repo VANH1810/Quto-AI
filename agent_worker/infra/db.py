@@ -8,6 +8,7 @@ init_models() chạy db/schema.sql (idempotent) lúc boot.
 from __future__ import annotations
 
 import logging
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -17,7 +18,6 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
                                     create_async_engine)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.pool import NullPool
 from sqlalchemy.sql import func
 
 from agent_worker.config import get_worker_settings
@@ -26,10 +26,23 @@ log = logging.getLogger("agent_worker.db")
 
 _SCHEMA_FILE = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
 
-# NullPool: không giữ connection qua nhiều event loop / qua fork của Celery prefork
-# → tránh lỗi "attached to a different loop".
-engine = create_async_engine(get_worker_settings().database_url, poolclass=NullPool)
-async_session = async_sessionmaker(engine, expire_on_commit=False)
+# Engine + sessionmaker RIÊNG mỗi thread: Celery threads pool cho mỗi thread 1 event
+# loop; AsyncEngine phải gắn đúng 1 loop → tạo theo-thread. Nhờ vậy DÙNG pool thật
+# (tái dùng connection) thay cho NullPool → hết churn connect/disconnect mỗi thao tác.
+_local = threading.local()
+
+
+def _sessionmaker() -> async_sessionmaker[AsyncSession]:
+    sm = getattr(_local, "sm", None)
+    if sm is None:
+        eng = create_async_engine(
+            get_worker_settings().database_url,
+            pool_size=5, max_overflow=5, pool_pre_ping=True,
+        )
+        _local.engine = eng
+        sm = async_sessionmaker(eng, expire_on_commit=False)
+        _local.sm = sm
+    return sm
 
 
 class Base(DeclarativeBase):
@@ -51,6 +64,8 @@ class Citizen(Base):
     lon: Mapped[float | None] = mapped_column(Float, nullable=True)
     consent_zalo_sms: Mapped[bool] = mapped_column(Boolean, default=True)
     preferred_lang: Mapped[str] = mapped_column(String, default="vi")
+    telegram_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    telegram_link_token: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class Admin(Base):
@@ -158,7 +173,8 @@ async def init_models() -> None:
     # statement đầu và bị loại nhầm.
     code = "\n".join(ln for ln in sql.splitlines() if not ln.strip().startswith("--"))
     statements = [s.strip() for s in code.split(";") if s.strip()]
-    async with engine.begin() as conn:
+    _sessionmaker()   # đảm bảo engine của thread đã tạo
+    async with _local.engine.begin() as conn:
         for stmt in statements:
             await conn.execute(text(stmt))
     log.info("Đã khởi tạo DB backend AI (data + agent_runs/agent_spans).")
@@ -166,7 +182,7 @@ async def init_models() -> None:
 
 @asynccontextmanager
 async def session() -> AsyncIterator[AsyncSession]:
-    async with async_session() as s:
+    async with _sessionmaker()() as s:
         try:
             yield s
             await s.commit()

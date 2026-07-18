@@ -3,17 +3,19 @@
   uvicorn agent_worker.api:app --host 0.0.0.0 --port 8100
   Swagger: http://localhost:8100/docs
 
-Thiết kế: gọi 1 lần là có kết quả (KHÔNG polling). Endpoint "tạo cảnh báo" đẩy việc
-cho Celery worker chạy graph (LLM) rồi CHỜ kết quả trả về luôn. Gửi đa kênh vẫn nền.
+Thiết kế: BẤT ĐỒNG BỘ + polling. `POST /warnings` đẩy job cho Celery worker rồi trả
+`warning_id` NGAY. Bên gọi dùng `GET /warnings/{id}` lấy **metadata + tiến độ** đọc từ
+Redis (Celery AsyncResult): state PENDING→PROGRESS(node/step)→SUCCESS/FAILURE + kết quả.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 
 from celery.result import AsyncResult
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, ConfigDict
 
 from agent_worker.celery_app import app as celery_app
@@ -25,8 +27,6 @@ app = FastAPI(
     version="0.2.0",
     description="Sinh & gửi cảnh báo thiên tai cấp xã bằng AI. Gọi 1 lần có kết quả ngay.",
 )
-
-_TIMEOUT = 120  # giây chờ agent chạy xong graph
 
 _FORECAST_NGUY_HIEM = {
     "commune_code": "muong_pon", "commune_name": "Xã Mường Pồn",
@@ -42,27 +42,39 @@ _FORECAST_NGUY_HIEM = {
     ],
 }
 
+def _snapshot(ar: AsyncResult) -> dict:
+    """Ảnh chụp 1 Celery task từ Redis: state + info (meta PROGRESS / result / exception)."""
+    info = ar.info
+    if isinstance(info, BaseException):
+        info = {"error": str(info)}
+    return {"state": ar.state, "info": info}
 
-async def _wait(async_result: AsyncResult) -> dict:
-    """Chờ Celery task xong (không block event loop) rồi trả result. Timeout → 504."""
-    loop = asyncio.get_event_loop()
+
+log = logging.getLogger("agent_worker.api")
+
+
+def _warm_broker() -> None:
+    """Mở sẵn 1 kết nối RabbitMQ (blocking) để lần apply_async đầu khỏi bắt tay AMQP."""
+    conn = celery_app.connection()
     try:
-        res = await loop.run_in_executor(
-            None, lambda: async_result.get(timeout=_TIMEOUT, propagate=False))
-    except Exception as e:  # noqa: BLE001 — timeout/broker lỗi
-        raise HTTPException(504, f"Agent chưa trả kết quả kịp ({_TIMEOUT}s): {e}")
-    if isinstance(res, BaseException):
-        raise HTTPException(500, f"Agent lỗi: {res}")
-    return res or {}
+        conn.ensure_connection(max_retries=2, timeout=5)
+    finally:
+        conn.release()
 
 
 @app.on_event("startup")
 async def _startup() -> None:
+    # Warm-up: mở sẵn Postgres + RabbitMQ ngay khi boot → request /warnings ĐẦU TIÊN không bị
+    # trả chậm vì phải thiết lập kết nối lần đầu (cold start).
     try:
-        await init_models()
+        await init_models()                         # tạo bảng + warm kết nối Postgres
     except Exception as e:  # noqa: BLE001
-        import logging
-        logging.getLogger("agent_worker.api").warning("init_models hoãn: %s", e)
+        log.warning("init_models hoãn: %s", e)
+    try:
+        await asyncio.to_thread(_warm_broker)       # warm kết nối RabbitMQ (không chặn loop)
+        log.info("Warm-up broker RabbitMQ OK")
+    except Exception as e:  # noqa: BLE001
+        log.warning("Warm-up broker hoãn: %s", e)
 
 
 @app.get("/health", tags=["system"], summary="Kiểm tra hệ thống sống")
@@ -70,11 +82,82 @@ def health() -> dict:
     return {"status": "ok", "broker": celery_app.conf.broker_url.split("@")[-1], "backend": "redis"}
 
 
+# ================================================================ TELEGRAM
+
+class TelegramTestIn(BaseModel):
+    chat_id: str                 # chat_id của bạn (lấy từ /dev/telegram-updates)
+    text: str = "Test cảnh báo Quto AI ✅"
+
+
+async def _bot_username() -> str | None:
+    from agent_worker.tools import telegram_tool
+    me = await telegram_tool.get_me()
+    return (me.get("result") or {}).get("username") if me.get("ok") else None
+
+
+@app.get("/telegram/invite-links", tags=["Telegram"],
+         summary="Tạo link đăng ký (opt-in) cho dân 1 xã",
+         description="""
+Sinh `telegram_link_token` (nếu chưa có) cho từng công dân của xã và trả link
+`https://t.me/<bot>?start=<token>`. Phát link cho dân bấm Start → gọi
+`/telegram/sync-subscribers` để lưu chat_id. **Link KHÔNG chứa CCCD.**
+""")
+async def telegram_invite_links(commune_code: str = Query(..., description="Mã xã")) -> dict:
+    rows = await data_repo.ensure_link_tokens(commune_code)
+    username = await _bot_username()
+    base = f"https://t.me/{username}?start=" if username else None
+    links = [{"full_name": r["full_name"],
+              "link": (base + r["telegram_link_token"]) if base else None,
+              "token": r["telegram_link_token"]} for r in rows]
+    return {"commune_code": commune_code, "bot_username": username,
+            "n": len(links), "links": links,
+            "note": None if username else "Chưa lấy được bot username (TELEGRAM_PROVIDER=live?)."}
+
+
+@app.post("/telegram/sync-subscribers", tags=["Telegram"],
+          summary="Đồng bộ người đã Start bot → lưu chat_id vào công dân",
+          description="""
+Đọc `getUpdates` của bot; với ai đã bấm Start qua link (`/start <token>`) thì tra
+token → công dân và lưu `chat_id`. Gọi lại sau mỗi đợt phát link.
+""")
+async def telegram_sync_subscribers() -> dict:
+    from agent_worker.tools import telegram_tool
+    updates = await telegram_tool.get_updates()
+    mapped, unmatched = [], []
+    for u in updates:
+        token = u.get("start_payload")
+        if not token:
+            continue
+        citizen = await data_repo.set_telegram_chat_id_by_token(token, u["chat_id"])
+        if citizen:
+            mapped.append({"full_name": citizen["full_name"], "chat_id": u["chat_id"]})
+        else:
+            unmatched.append({"chat_id": u["chat_id"], "token": token})
+    return {"mapped": len(mapped), "subscribers": mapped, "unmatched": unmatched,
+            "seen_updates": len(updates)}
+
+
+@app.get("/dev/telegram-updates", tags=["Telegram"],
+         summary="Xem update gần đây của bot (tìm chat_id / debug)")
+async def telegram_updates() -> dict:
+    from agent_worker.tools import telegram_tool
+    return {"updates": await telegram_tool.get_updates()}
+
+
+@app.post("/dev/telegram-test", tags=["Telegram"],
+          summary="Gửi 1 tin Telegram tới chat_id để test (bỏ qua graph)")
+async def telegram_test(body: TelegramTestIn) -> dict:
+    from agent_worker.tools import telegram_tool
+    rec = await telegram_tool.send_message(body.chat_id, body.text)
+    return rec.model_dump()
+
+
 # ============================================================ CẢNH BÁO (AI Agent)
 
 class CreateWarning(BaseModel):
     commune_code: str
     langs: list[str] = ["vi", "tai", "hmn"]
+    commune: dict | None = None   # caller (backend) đính kèm object Commune → dùng thẳng
     forecast: dict | None = None
     trigger: str = "manual"
 
@@ -83,31 +166,78 @@ class CreateWarning(BaseModel):
         {"commune_code": "muong_pon", "langs": ["vi", "tai", "hmn"], "forecast": _FORECAST_NGUY_HIEM},
     ]})
 
-
 @app.post("/warnings", tags=["Cảnh báo (AI)"],
-          summary="Tạo cảnh báo cho 1 xã — AI chạy ngay, trả bản tin",
+          summary="Tạo cảnh báo cho 1 xã — trả warning_id ngay (polling sau)",
           description="""
-Cho AI **quét nguy cơ + sinh bản tin cảnh báo đa ngữ** cho 1 xã và trả kết quả NGAY
-(không cần hỏi lại nhiều lần). Bên trong: dự báo → risk engine (QĐ18) → khuyến nghị
-hành động → LLM soạn bản tin (vi/tai/hmn).
-
-- Cấp thấp (< 3): agent **tự gửi** luôn → `status = "dispatching"`.
-- Cấp cao (≥ 3): **chờ cán bộ duyệt** → `status = "pending_approval"` (gọi `/warnings/{id}/approve`).
+Đẩy job cho AI worker (quét nguy cơ → risk engine QĐ18 → LLM sinh bản tin đa ngữ) và
+**trả `warning_id` NGAY** (không chờ). Bên gọi dùng `GET /warnings/{warning_id}` để poll
+metadata + tiến độ.
 
 **Mã xã:** muong_pon, tua_chua, muong_nhe, nam_po, tuan_giao, dbp, muong_cha, dien_bien_dong.
 Chọn ví dụ *"forecast 250mm"* để chắc chắn ra cấp cao. (Chạy `/seed` trước để có dân.)
 
-**Kết quả:** `{ warning_id, status, risk_level, hazard, bulletins[vi,tai,hmn], recommended_actions, recipients }`
+**Kết quả:** `{ "warning_id": "alt_xxx", "status": "queued" }`
 """)
 async def create_warning(body: CreateWarning) -> dict:
     warning_id = "alt_" + uuid.uuid4().hex[:12]
     tasks.run_agent_job.apply_async(args=[{
-        "job_id": warning_id, "commune_code": body.commune_code, "langs": body.langs,
-        "forecast": body.forecast, "trigger": body.trigger, "requested_by": "agent-api",
+        "job_id": warning_id, "commune_code": body.commune_code, "commune": body.commune,
+        "langs": body.langs, "forecast": body.forecast, "trigger": body.trigger,
+        "requested_by": "agent-api",
     }], task_id=warning_id, queue="agent")
-    res = await _wait(AsyncResult(warning_id, app=celery_app))
-    res.pop("dispatch_plan", None)   # nội bộ, không trả ra
-    return {"warning_id": warning_id, **res}
+    return {"warning_id": warning_id, "status": "queued"}
+
+
+@app.get("/warnings/{warning_id}", tags=["Cảnh báo (AI)"],
+         summary="Polling: trạng thái + tiến độ + kết quả (đọc Redis)",
+         description="""
+Đọc metadata Celery `AsyncResult` từ Redis. Gọi lặp lại đến khi `state=SUCCESS`.
+
+- `state`: PENDING → PROGRESS → SUCCESS / FAILURE (Celery, lưu ở Redis).
+- `progress`: node đang chạy + step/total (khi PROGRESS).
+- `status`: gộp dễ đọc — queued|running|pending_approval|dispatching|no_risk|rejected|failed.
+- `result`: bản tin + risk_level + ... (khi xong).
+- `resume`: task duyệt/bác (nếu đã gọi approve/reject).
+
+**Ví dụ output (đang chạy):**
+```json
+{ "warning_id":"alt_x", "state":"PROGRESS", "status":"running",
+  "progress":{"node":"compose","step":5,"total":6}, "result":null, "resume":null }
+```
+**Ví dụ output (chờ duyệt):**
+```json
+{ "warning_id":"alt_x", "state":"SUCCESS", "status":"pending_approval", "progress":null,
+  "result":{"risk_level":4,"needs_human":true,"bulletins":[...vi,tai,hmn...],"n_recipients":3},
+  "resume":null }
+```
+""")
+def poll_warning(warning_id: str) -> dict:
+    run = _snapshot(AsyncResult(warning_id, app=celery_app))
+    resume_ar = AsyncResult(f"{warning_id}:resume", app=celery_app)
+    resume = _snapshot(resume_ar) if resume_ar.state != "PENDING" else None
+
+    info = run["info"] if isinstance(run["info"], dict) else {}
+    if resume and resume["state"] == "SUCCESS":
+        status = (resume["info"] or {}).get("status", "dispatching")
+    elif run["state"] == "SUCCESS":
+        status = info.get("status", "done")
+    elif run["state"] == "PROGRESS":
+        status = "running"
+    elif run["state"] == "FAILURE":
+        status = "failed"
+    else:
+        status = "queued"
+
+    progress = None
+    result = None
+    if run["state"] == "PROGRESS":
+        progress = {"node": info.get("node"), "step": info.get("step"), "total": info.get("total")}
+        result = info.get("result")   # metadata kết quả TÍCH LUỸ tới node hiện tại
+    elif run["state"] == "SUCCESS" and isinstance(run["info"], dict):
+        result = {k: v for k, v in run["info"].items() if k != "dispatch_plan"}
+
+    return {"warning_id": warning_id, "state": run["state"], "status": status,
+            "progress": progress, "result": result, "resume": resume}
 
 
 class ApproveWarning(BaseModel):
@@ -123,15 +253,14 @@ class ApproveWarning(BaseModel):
 
 @app.post("/warnings/{warning_id}/approve", tags=["Cảnh báo (AI)"],
           summary="Cán bộ duyệt & gửi cảnh báo (cấp cao)",
-          description="Duyệt 1 cảnh báo đang chờ → agent gửi bản tin đa kênh (Zalo/SMS/loa) "
+          description="Duyệt 1 cảnh báo đang chờ → agent gửi bản tin đa kênh (Telegram/loa) "
                       "tới từng người dân. Có thể sửa nội dung tiếng Việt trước khi gửi.")
 async def approve_warning(warning_id: str, body: ApproveWarning) -> dict:
     tasks.resume_agent_job.apply_async(args=[{
         "job_id": warning_id, "action": "approve", "admin_id": body.admin_id,
         "edited_body_vi": body.edited_body_vi, "note": body.note,
     }], task_id=f"{warning_id}:resume", queue="agent")
-    res = await _wait(AsyncResult(f"{warning_id}:resume", app=celery_app))
-    return {"warning_id": warning_id, **res}
+    return {"warning_id": warning_id, "status": "approving"}  # poll GET để xem dispatching
 
 
 @app.post("/warnings/{warning_id}/reject", tags=["Cảnh báo (AI)"],
@@ -141,8 +270,7 @@ async def reject_warning(warning_id: str, body: ApproveWarning) -> dict:
     tasks.resume_agent_job.apply_async(args=[{
         "job_id": warning_id, "action": "reject", "admin_id": body.admin_id, "note": body.note,
     }], task_id=f"{warning_id}:resume", queue="agent")
-    res = await _wait(AsyncResult(f"{warning_id}:resume", app=celery_app))
-    return {"warning_id": warning_id, **res}
+    return {"warning_id": warning_id, "status": "rejecting"}
 
 
 # ================================================================= DỮ LIỆU

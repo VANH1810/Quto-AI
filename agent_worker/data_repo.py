@@ -6,6 +6,7 @@ sang backend cũ: worker đọc/ghi THẲNG DB này.
 
 from __future__ import annotations
 
+import secrets
 import uuid
 
 from sqlalchemy import delete, select
@@ -89,6 +90,34 @@ async def admins_for_commune(code: str) -> list[dict]:
         return [_row(r) for r in rows if code in (r.communes or [])]
 
 
+# --------------------------------------------------- Telegram: đăng ký người nhận
+
+async def ensure_link_tokens(code: str) -> list[dict]:
+    """Sinh telegram_link_token (nếu chưa có) cho từng công dân của xã. Trả danh sách
+    {cccd, full_name, telegram_link_token} để tạo link đăng ký. KHÔNG lộ CCCD ra API."""
+    async with session() as s:
+        rows = (await s.execute(
+            select(Citizen).where(Citizen.commune_code == code))).scalars().all()
+        for c in rows:
+            if not c.telegram_link_token:
+                c.telegram_link_token = secrets.token_urlsafe(12)
+        # commit tự động khi thoát context
+        return [{"cccd": c.cccd, "full_name": c.full_name,
+                 "telegram_link_token": c.telegram_link_token} for c in rows]
+
+
+async def set_telegram_chat_id_by_token(token: str, chat_id: str) -> dict | None:
+    """Gắn chat_id vào công dân sở hữu token. Trả công dân đã map, None nếu token lạ."""
+    async with session() as s:
+        row = (await s.execute(
+            select(Citizen).where(Citizen.telegram_link_token == token))).scalar_one_or_none()
+        if row is None:
+            return None
+        row.telegram_chat_id = str(chat_id)
+        return {"cccd": row.cccd, "full_name": row.full_name,
+                "telegram_chat_id": row.telegram_chat_id}
+
+
 async def nearest_shelter(code: str, lat: float | None, lon: float | None) -> dict | None:
     async with session() as s:
         rows = (await s.execute(select(Shelter).where(Shelter.commune_code == code))).scalars().all()
@@ -103,11 +132,22 @@ async def nearest_shelter(code: str, lat: float | None, lon: float | None) -> di
 
 
 async def nearest_for_commune(code: str, citizens: list[dict]) -> dict[str, dict]:
+    """Nạp shelters của xã 1 LẦN, tính haversine gần nhất trong Python cho từng công
+    dân (bỏ N+1: không query lại mỗi người)."""
+    async with session() as s:
+        shelters = (await s.execute(
+            select(Shelter).where(Shelter.commune_code == code))).scalars().all()
+    if not shelters:
+        return {}
     out: dict[str, dict] = {}
     for c in citizens:
-        sh = await nearest_shelter(code, c.get("lat"), c.get("lon"))
-        if sh:
-            out[c["cccd"]] = sh
+        lat, lon = c.get("lat"), c.get("lon")
+        if lat is None or lon is None:
+            continue
+        best = min(shelters, key=lambda sh: haversine_km(lat, lon, sh.lat, sh.lon))
+        d = _row(best)
+        d["distance_km"] = haversine_km(lat, lon, best.lat, best.lon)
+        out[c["cccd"]] = d
     return out
 
 

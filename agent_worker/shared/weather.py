@@ -20,12 +20,40 @@ _HOURLY = "relative_humidity_2m,visibility"
 
 async def get_forecast(commune: Commune, days: int = 7) -> ForecastResponse:
     settings = get_settings()
+    if settings.weather_provider.lower() == "mock":
+        return _mock_danger(commune, days, settings.mock_precip_mm)
     if settings.weather_provider.lower() == "openmeteo":
         try:
             return await _openmeteo(commune, days, settings.openmeteo_base_url)
         except Exception:  # noqa: BLE001 — offline/timeout → không để demo chết
             pass
-    return _synthetic(commune, days)
+    return _synthetic(commune, days)  # fallback lỗi mạng: 'hiền' (không bịa nguy hiểm)
+
+
+def _mock_danger(commune: Commune, days: int, peak: float) -> ForecastResponse:
+    """Kịch bản DEMO mưa lớn: mưa dồn 2 ngày rồi ĐỈNH → lũ quét cấp cao (QĐ18 KV1).
+
+    Chỉ kích hoạt khi WEATHER_PROVIDER=mock. Chỉnh đỉnh bằng MOCK_PRECIP_MM.
+    """
+    ramp = [0.35, 0.6, 1.0, 0.5, 0.2, 0.15, 0.1]     # tích luỹ → đỉnh ngày 3 → giảm dần
+    base_temp = 26 - commune.elevation_m / 200
+    start = date.today()
+    out: list[DailyForecast] = []
+    for i in range(days):
+        p = round(peak * ramp[i % len(ramp)], 1)
+        tmean = round(base_temp - 2, 1)              # mưa lớn → mát
+        out.append(DailyForecast(
+            date=(start + timedelta(days=i)).isoformat(), precip_mm=p,
+            temp_max_c=round(tmean + 3, 1), temp_min_c=round(tmean - 3, 1), temp_mean_c=tmean,
+            wind_max_kmh=round(25 + ramp[i % len(ramp)] * 20, 1),
+            humidity_mean=round(90 + ramp[i % len(ramp)] * 8, 1),
+            visibility_min_m=round(4000 - ramp[i % len(ramp)] * 2500, 0),
+        ))
+    return ForecastResponse(
+        commune_code=commune.code, commune_name=commune.name, lat=commune.lat, lon=commune.lon,
+        elevation_m=commune.elevation_m, source=f"MOCK nguy hiểm (~{peak:g}mm/24h)",
+        updated_at=_now_iso(), days=out,
+    )
 
 
 async def _openmeteo(commune: Commune, days: int, base_url: str) -> ForecastResponse:
