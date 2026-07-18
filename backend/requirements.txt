@@ -8,5 +8,5 @@ pydantic-settings>=2.2
 httpx>=0.27
 pyjwt>=2.8
 python-multipart>=0.0.9
-# Chỉ cần khi DB_BACKEND=supabase (mặc định memory không cần):
+pytest>=8.0
 supabase>=2.4
