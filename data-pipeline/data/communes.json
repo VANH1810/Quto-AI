@@ -2,316 +2,484 @@
   {
     "code": "muong_nhe",
     "name": "Xã Mường Nhé",
-    "lat": 22.18,
-    "lon": 102.47,
-    "elevation_m": 900.0
+    "lat": 22.19236,
+    "lon": 102.4579,
+    "elevation_m": 545,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1574250,
+    "matched_name": "Mường Nhé",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Nhé",
+    "population_geonames": 11671,
+    "coord_confidence": "medium"
   },
   {
     "code": "sin_thau",
     "name": "Xã Sín Thầu",
     "lat": 22.37,
     "lon": 102.18,
-    "elevation_m": 1200.0
+    "elevation_m": 1200.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_toong",
     "name": "Xã Mường Toong",
     "lat": 22.2,
     "lon": 102.55,
-    "elevation_m": 950.0
+    "elevation_m": 950.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "nam_ke",
     "name": "Xã Nậm Kè",
-    "lat": 22.05,
-    "lon": 102.6,
-    "elevation_m": 850.0
+    "lat": 22.12374,
+    "lon": 102.57993,
+    "elevation_m": 489,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 8425713,
+    "matched_name": "Nậm Kè",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Nhé",
+    "coord_confidence": "medium"
   },
   {
     "code": "quang_lam",
     "name": "Xã Quảng Lâm",
-    "lat": 22.0,
-    "lon": 102.55,
-    "elevation_m": 900.0
+    "lat": 22.03736,
+    "lon": 102.67596,
+    "elevation_m": 492,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1568784,
+    "matched_name": "Quảng Lâm",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Nhé",
+    "coord_confidence": "medium"
   },
   {
     "code": "na_hy",
     "name": "Xã Nà Hỳ",
     "lat": 21.95,
     "lon": 102.72,
-    "elevation_m": 800.0
+    "elevation_m": 800.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "na_bung",
     "name": "Xã Nà Bủng",
     "lat": 21.8,
     "lon": 102.65,
-    "elevation_m": 850.0
+    "elevation_m": 850.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "cha_to",
     "name": "Xã Chà Tở",
     "lat": 21.88,
     "lon": 102.85,
-    "elevation_m": 780.0
+    "elevation_m": 780.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "si_pa_phin",
     "name": "Xã Si Pa Phìn",
     "lat": 21.83,
     "lon": 102.9,
-    "elevation_m": 900.0
+    "elevation_m": 900.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_cha",
     "name": "Xã Mường Chà",
-    "lat": 21.85,
-    "lon": 103.1,
-    "elevation_m": 650.0
+    "lat": 21.76172,
+    "lon": 103.09783,
+    "elevation_m": 523,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 8425634,
+    "matched_name": "Thị Trấn Mường Chà",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Chà",
+    "population_geonames": 13884,
+    "coord_confidence": "medium"
   },
   {
     "code": "na_sang",
     "name": "Xã Na Sang",
     "lat": 21.78,
     "lon": 103.05,
-    "elevation_m": 600.0
+    "elevation_m": 600.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_tung",
     "name": "Xã Mường Tùng",
     "lat": 21.9,
     "lon": 103.15,
-    "elevation_m": 700.0
+    "elevation_m": 700.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "pa_ham",
     "name": "Xã Pa Ham",
-    "lat": 21.95,
-    "lon": 103.25,
-    "elevation_m": 750.0
+    "lat": 21.93314,
+    "lon": 103.23093,
+    "elevation_m": 290,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1571368,
+    "matched_name": "Pa Ham",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Chà",
+    "coord_confidence": "medium"
   },
   {
     "code": "nam_nen",
     "name": "Xã Nậm Nèn",
-    "lat": 21.72,
-    "lon": 103.02,
-    "elevation_m": 700.0
+    "lat": 21.85,
+    "lon": 103.28333,
+    "elevation_m": 264,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1589480,
+    "matched_name": "Bản Nam Nen",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Chà",
+    "coord_confidence": "medium"
   },
   {
     "code": "muong_pon",
     "name": "Xã Mường Pồn",
-    "lat": 21.53,
-    "lon": 103.08,
-    "elevation_m": 720.0
+    "lat": 21.54077,
+    "lon": 103.01269,
+    "elevation_m": 485,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1574298,
+    "matched_name": "Mường Pồn",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Điện Biên",
+    "coord_confidence": "high"
   },
   {
     "code": "tua_chua",
     "name": "Xã Tủa Chùa",
-    "lat": 21.99,
-    "lon": 103.36,
-    "elevation_m": 1420.0
+    "lat": 21.863,
+    "lon": 103.331,
+    "elevation_m": 896,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1563515,
+    "matched_name": "Tủa Chùa",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Chà",
+    "coord_confidence": "medium"
   },
   {
     "code": "sin_chai",
     "name": "Xã Sín Chải",
-    "lat": 22.08,
-    "lon": 103.33,
-    "elevation_m": 1500.0
+    "lat": 22.36667,
+    "lon": 103.2,
+    "elevation_m": 1063,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1567887,
+    "matched_name": "Sin Chải",
+    "admin1": "Lai Châu",
+    "admin2": "Huyện Sìn Hồ",
+    "coord_confidence": "medium"
   },
   {
     "code": "sinh_phinh",
     "name": "Xã Sính Phình",
     "lat": 22.02,
     "lon": 103.4,
-    "elevation_m": 1450.0
+    "elevation_m": 1450.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "tua_thang",
     "name": "Xã Tủa Thàng",
-    "lat": 21.92,
-    "lon": 103.45,
-    "elevation_m": 1100.0
+    "lat": 21.94468,
+    "lon": 103.441,
+    "elevation_m": 854,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 8425743,
+    "matched_name": "Tủa Thàng",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Tủa Chùa",
+    "coord_confidence": "medium"
   },
   {
     "code": "sang_nhe",
     "name": "Xã Sáng Nhè",
     "lat": 21.88,
     "lon": 103.38,
-    "elevation_m": 1000.0
+    "elevation_m": 1000.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "tuan_giao",
     "name": "Xã Tuần Giáo",
-    "lat": 21.58,
-    "lon": 103.42,
-    "elevation_m": 600.0
+    "lat": 21.58333,
+    "lon": 103.41667,
+    "elevation_m": 563,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1563509,
+    "matched_name": "Tuần Giáo",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Tuần Giáo",
+    "population_geonames": 8512,
+    "coord_confidence": "medium"
   },
   {
     "code": "quai_to",
     "name": "Xã Quài Tở",
     "lat": 21.62,
     "lon": 103.5,
-    "elevation_m": 700.0
+    "elevation_m": 700.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_mun",
     "name": "Xã Mường Mùn",
     "lat": 21.65,
     "lon": 103.35,
-    "elevation_m": 650.0
+    "elevation_m": 650.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "pu_nhung",
     "name": "Xã Pú Nhung",
-    "lat": 21.72,
-    "lon": 103.42,
-    "elevation_m": 900.0
+    "lat": 21.7081,
+    "lon": 103.21851,
+    "elevation_m": 423,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 10944452,
+    "matched_name": "Pú Nhung Họ",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Tuần Giáo",
+    "coord_confidence": "medium"
   },
   {
     "code": "chieng_sinh",
     "name": "Xã Chiềng Sinh",
     "lat": 21.55,
     "lon": 103.48,
-    "elevation_m": 650.0
+    "elevation_m": 650.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_ang",
     "name": "Xã Mường Ảng",
-    "lat": 21.5,
-    "lon": 103.32,
-    "elevation_m": 550.0
+    "lat": 21.51667,
+    "lon": 103.23333,
+    "elevation_m": 559,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1574287,
+    "matched_name": "Mương Ang",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Mường Ảng",
+    "coord_confidence": "medium"
   },
   {
     "code": "na_tau",
     "name": "Xã Nà Tấu",
-    "lat": 21.48,
-    "lon": 103.18,
-    "elevation_m": 700.0
+    "lat": 21.50635,
+    "lon": 103.1178,
+    "elevation_m": 839,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1589412,
+    "matched_name": "Nà Tấu",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Điện Biên",
+    "population_geonames": 6333,
+    "coord_confidence": "high"
   },
   {
     "code": "bung_lao",
     "name": "Xã Búng Lao",
     "lat": 21.55,
     "lon": 103.25,
-    "elevation_m": 600.0
+    "elevation_m": 600.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_lan",
     "name": "Xã Mường Lạn",
     "lat": 21.45,
     "lon": 103.2,
-    "elevation_m": 650.0
+    "elevation_m": 650.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_phang",
     "name": "Xã Mường Phăng",
-    "lat": 21.42,
+    "lat": 21.45,
     "lon": 103.15,
-    "elevation_m": 950.0
+    "elevation_m": 963,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1574300,
+    "matched_name": "Muong Phan",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Điện Biên",
+    "coord_confidence": "high"
   },
   {
     "code": "thanh_nua",
     "name": "Xã Thanh Nưa",
     "lat": 21.45,
     "lon": 103.0,
-    "elevation_m": 500.0
+    "elevation_m": 500.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "thanh_an",
     "name": "Xã Thanh An",
     "lat": 21.33,
     "lon": 103.02,
-    "elevation_m": 480.0
+    "elevation_m": 480.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "thanh_yen",
     "name": "Xã Thanh Yên",
     "lat": 21.35,
     "lon": 103.05,
-    "elevation_m": 480.0
+    "elevation_m": 480.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "sam_mun",
     "name": "Xã Sam Mứn",
-    "lat": 21.3,
-    "lon": 103.0,
-    "elevation_m": 480.0
+    "lat": 21.26667,
+    "lon": 103.01667,
+    "elevation_m": 668,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1588946,
+    "matched_name": "Bản Sam Moun",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Huyện Điện Biên",
+    "coord_confidence": "high"
   },
   {
     "code": "nua_ngam",
     "name": "Xã Núa Ngam",
     "lat": 21.25,
     "lon": 102.95,
-    "elevation_m": 550.0
+    "elevation_m": 550.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_nha",
     "name": "Xã Mường Nhà",
     "lat": 21.15,
     "lon": 103.05,
-    "elevation_m": 600.0
+    "elevation_m": 600.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "na_son",
     "name": "Xã Na Son",
     "lat": 21.28,
     "lon": 103.22,
-    "elevation_m": 900.0
+    "elevation_m": 900.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "xa_dung",
     "name": "Xã Xa Dung",
     "lat": 21.2,
     "lon": 103.3,
-    "elevation_m": 1100.0
+    "elevation_m": 1100.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "pu_nhi",
     "name": "Xã Pu Nhi",
     "lat": 21.22,
     "lon": 103.25,
-    "elevation_m": 1000.0
+    "elevation_m": 1000.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_luan",
     "name": "Xã Mường Luân",
     "lat": 21.1,
     "lon": 103.4,
-    "elevation_m": 700.0
+    "elevation_m": 700.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "tia_dinh",
     "name": "Xã Tia Dình",
     "lat": 21.15,
     "lon": 103.45,
-    "elevation_m": 800.0
+    "elevation_m": 800.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "phinh_giang",
     "name": "Xã Phình Giàng",
     "lat": 21.18,
     "lon": 103.35,
-    "elevation_m": 950.0
+    "elevation_m": 950.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   },
   {
     "code": "muong_lay",
     "name": "Phường Mường Lay",
-    "lat": 22.03,
-    "lon": 103.15,
-    "elevation_m": 200.0
+    "lat": 22.0,
+    "lon": 103.13333,
+    "elevation_m": 496,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1574257,
+    "matched_name": "Mường Lay",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Thị Xã Mưòng Lay",
+    "population_geonames": 20450,
+    "coord_confidence": "medium"
   },
   {
     "code": "dien_bien_phu",
     "name": "Phường Điện Biên Phủ",
-    "lat": 21.386,
-    "lon": 103.017,
-    "elevation_m": 480.0
+    "lat": 21.38602,
+    "lon": 103.02301,
+    "elevation_m": 485,
+    "coord_source": "open-meteo-geocoding/geonames",
+    "geonames_id": 1583477,
+    "matched_name": "Điện Biên Phủ",
+    "admin1": "Tỉnh Ðiện Biên",
+    "admin2": "Thành Phố Điện Biên Phủ",
+    "population_geonames": 84672,
+    "coord_confidence": "high"
   },
   {
     "code": "muong_thanh",
     "name": "Phường Mường Thanh",
     "lat": 21.38,
     "lon": 103.02,
-    "elevation_m": 480.0
+    "elevation_m": 480.0,
+    "coord_source": "approximate-manual",
+    "coord_confidence": "low"
   }
 ]
