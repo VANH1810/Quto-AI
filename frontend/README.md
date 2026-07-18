@@ -65,6 +65,29 @@ NEXT_PUBLIC_USE_MOCKS=true
 
 Mock chỉ được bật bằng biến môi trường này; không tự chuyển sang mock khi API trả lỗi xác thực hoặc lỗi máy chủ. Chế độ mock gán admin demo cho bốn xã Sín Thầu, Nậm Kè, Quảng Lâm, Na Sang và có hai nhóm cần liên hệ trực tiếp được tách theo `alertId`.
 
+## Deploy trên Vercel
+
+Khi import repository vào Vercel, đặt **Root Directory** là `frontend`. Vercel sẽ dùng `vercel.json`, chạy `npm ci` rồi `npm run build`; App Router tự phục vụ `/`, `/admin` và toàn bộ route con, không cần rewrite SPA.
+
+Thiết lập biến môi trường cho cả Production và Preview:
+
+| Biến | Production dùng backend | Bản demo độc lập |
+|---|---|---|
+| `NEXT_PUBLIC_DATA_SOURCE` | `api` | `mock` |
+| `NEXT_PUBLIC_API_BASE_URL` | URL HTTPS public của FastAPI | Có thể bỏ qua nếu mọi màn hình đều dùng mock |
+| `NEXT_PUBLIC_USE_MOCKS` | `false` | `true` |
+
+Nếu dùng backend thật, thêm domain Production/Preview của Vercel vào `CORS_ORIGINS` phía FastAPI. Không đưa khóa bí mật vào biến có tiền tố `NEXT_PUBLIC_`; ba biến frontend trên đều được nhúng vào JavaScript lúc build, vì vậy cần redeploy sau khi đổi giá trị.
+
+Trước khi deploy hoặc promote Preview sang Production, chạy:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+```
+
 ## Cấu trúc
 
 ```text

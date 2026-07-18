@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import L, { type Layer } from "leaflet";
 import { Circle, GeoJSON, MapContainer, Marker, Pane, Popup, TileLayer, useMap } from "react-leaflet";
 import type { Feature, Geometry, Polygon } from "geojson";
@@ -50,11 +50,10 @@ function getResponsivePadding(container: HTMLElement) {
   };
 }
 
-function ProvinceViewport({ boundary, hasActiveMarkers }: { boundary: ProvinceGeoJSON; hasActiveMarkers: boolean }) {
+function ProvinceViewport({ bounds, hasActiveMarkers }: { bounds: L.LatLngBounds; hasActiveMarkers: boolean }) {
   const map = useMap();
 
   useEffect(() => {
-    const bounds = L.geoJSON(boundary).getBounds();
     if (!bounds.isValid()) return;
 
     const container = map.getContainer();
@@ -82,15 +81,13 @@ function ProvinceViewport({ boundary, hasActiveMarkers }: { boundary: ProvinceGe
 
     const resizeObserver = new ResizeObserver(scheduleFit);
     resizeObserver.observe(container);
-    window.addEventListener("resize", scheduleFit);
     scheduleFit();
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", scheduleFit);
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
     };
-  }, [boundary, hasActiveMarkers, map]);
+  }, [bounds, hasActiveMarkers, map]);
 
   return null;
 }
@@ -136,12 +133,10 @@ function ActiveMarkersViewport({
 
     const resizeObserver = new ResizeObserver(scheduleFit);
     resizeObserver.observe(container);
-    window.addEventListener("resize", scheduleFit);
     scheduleFit();
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", scheduleFit);
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
     };
   }, [approximateLocation, map, shelters, userPosition]);
@@ -184,7 +179,8 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
 }
 
-export default function MapCanvas({ provinceBoundary, boundaries, alerts, shelters, filter, selection, userPosition, routeOrigin, onSelect }: MapCanvasProps) {
+function MapCanvas({ provinceBoundary, boundaries, alerts, shelters, filter, selection, userPosition, routeOrigin, onSelect }: MapCanvasProps) {
+  const communeLayerRef = useRef<L.GeoJSON<CommuneProperties> | null>(null);
   const alertsByCommune = useMemo(() => new Map(alerts.map((alert) => [alert.communeCode, alert])), [alerts]);
   const outsideMask = useMemo(() => createOutsideMask(provinceBoundary), [provinceBoundary]);
   const provinceBounds = useMemo(() => L.geoJSON(provinceBoundary).getBounds(), [provinceBoundary]);
@@ -195,7 +191,7 @@ export default function MapCanvas({ provinceBoundary, boundaries, alerts, shelte
     return { ...representativePointFromFeature(feature), code: feature.properties.code, name: feature.properties.name };
   }, [boundaries, selection, userPosition]);
 
-  function onEachFeature(feature: Feature<Geometry, CommuneProperties>, layer: Layer) {
+  const onEachFeature = useCallback((feature: Feature<Geometry, CommuneProperties>, layer: Layer) => {
     const alert = alertsByCommune.get(feature.properties.code);
     if (!alert) return;
     const risk = RISK_META[alert.riskLevel];
@@ -204,7 +200,20 @@ export default function MapCanvas({ provinceBoundary, boundaries, alerts, shelte
       `<div class="polygon-popup"><small>${escapeHtml(risk.label)}</small><strong>${escapeHtml(feature.properties.name)}</strong><span>${escapeHtml(alert.hazardLabel)} · ${escapeHtml(alert.headline)}</span><b>Xem hướng dẫn an toàn →</b></div>`,
       { closeButton: false, offset: [0, -4] },
     );
-  }
+  }, [alertsByCommune, onSelect]);
+
+  const getCommuneStyle = useCallback((feature?: Feature<Geometry, CommuneProperties>) => {
+    const code = feature?.properties.code ?? "";
+    const alert = alertsByCommune.get(code) as CommuneAlert | undefined;
+    const matches = filter === "all" || alert?.hazard === filter;
+    const active = selection?.type === "commune" && selection.id === code;
+    const color = alert ? RISK_META[alert.riskLevel].color : "#94a3b8";
+    return { fillColor: matches ? color : "#cbd5e1", fillOpacity: matches ? (active ? 0.84 : 0.67) : 0.12, color: active ? "#102c3c" : "#ffffff", weight: active ? 3 : 1.5, opacity: matches ? 0.95 : 0.45 };
+  }, [alertsByCommune, filter, selection]);
+
+  useEffect(() => {
+    communeLayerRef.current?.setStyle(getCommuneStyle);
+  }, [getCommuneStyle]);
 
   return (
     <MapContainer bounds={provinceBounds} maxBounds={provinceBounds} maxZoom={13} maxBoundsViscosity={1} zoomSnap={0.25} zoomDelta={0.5} zoomControl={false} className="leaflet-map">
@@ -217,17 +226,10 @@ export default function MapCanvas({ provinceBoundary, boundaries, alerts, shelte
         />
       </Pane>
       <GeoJSON
-        key={`${filter}-${selection?.type}-${selection?.id}`}
+        ref={communeLayerRef}
         data={boundaries as CommuneGeoJSON}
         onEachFeature={onEachFeature}
-        style={(feature) => {
-          const code = feature?.properties?.code as string;
-          const alert = alertsByCommune.get(code) as CommuneAlert | undefined;
-          const matches = filter === "all" || alert?.hazard === filter;
-          const active = selection?.type === "commune" && selection.id === code;
-          const color = alert ? RISK_META[alert.riskLevel].color : "#94a3b8";
-          return { fillColor: matches ? color : "#cbd5e1", fillOpacity: matches ? (active ? 0.84 : 0.67) : 0.12, color: active ? "#102c3c" : "#ffffff", weight: active ? 3 : 1.5, opacity: matches ? 0.95 : 0.45 };
-        }}
+        style={getCommuneStyle}
       />
       <GeoJSON
         data={provinceBoundary}
@@ -276,8 +278,10 @@ export default function MapCanvas({ provinceBoundary, boundaries, alerts, shelte
         </Marker>
       )}
 
-      <ProvinceViewport boundary={provinceBoundary} hasActiveMarkers={Boolean(shelters.length || userPosition)} />
+      <ProvinceViewport bounds={provinceBounds} hasActiveMarkers={Boolean(shelters.length || userPosition)} />
       <ActiveMarkersViewport shelters={shelters} userPosition={userPosition} approximateLocation={approximateLocation} />
     </MapContainer>
   );
 }
+
+export default memo(MapCanvas);
