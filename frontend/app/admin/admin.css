@@ -642,11 +642,71 @@
 .sos-audit .simple-list { border-top: 1px solid #e2eef5; }
 .sos-audit .simple-list li { min-height: 68px; padding-inline: 4px; }
 
+/* Modal chuyển trạng thái SOS: cùng Roboto, Lucide và liquid-glass với bản đồ cảnh báo. */
+.sos-dialog-backdrop {
+  position: fixed;
+  z-index: 240;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(13, 37, 51, .58);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.sos-status-dialog {
+  width: min(100%, 604px);
+  padding: clamp(32px, 5vw, 46px);
+  display: grid;
+  justify-items: center;
+  border: 2px solid rgba(255, 255, 255, .92);
+  border-radius: 28px;
+  color: var(--c-ink);
+  background: linear-gradient(135deg, rgba(255, 255, 255, .97), rgba(225, 242, 249, .94));
+  box-shadow: 0 28px 72px rgba(6, 34, 52, .3), inset 0 1px 0 #fff;
+  font-family: var(--font-roboto), "Roboto", Arial, sans-serif;
+  text-align: center;
+  animation: sos-dialog-enter .18s ease-out both;
+}
+
+.sos-dialog-icon {
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  border-radius: 25px;
+  color: #fff;
+  background: #177c73;
+  box-shadow: 0 16px 28px rgba(23, 124, 115, .2);
+}
+
+.sos-status-dialog.is-error .sos-dialog-icon { background: var(--c-critical); box-shadow: 0 16px 28px rgba(188, 57, 66, .2); }
+.sos-status-dialog.is-pending .sos-dialog-icon,
+.sos-status-dialog.is-confirm .sos-dialog-icon { background: #0061b6; box-shadow: 0 16px 28px rgba(0, 97, 182, .2); }
+.sos-status-dialog h2 { margin: 25px 0 0; color: #084978; font-size: clamp(24px, 3.2vw, 31px); font-weight: 900; line-height: 1.22; letter-spacing: -.025em; }
+.sos-status-dialog p { max-width: 48ch; margin: 14px 0 0; color: #5b7b91; font-size: clamp(15px, 2vw, 18px); font-weight: 500; line-height: 1.5; }
+.sos-dialog-actions { min-height: 56px; margin-top: 30px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.sos-dialog-actions button { min-width: 132px; min-height: 54px; padding: 0 24px; border-radius: 14px; font: inherit; font-size: 17px; font-weight: 850; cursor: pointer; }
+.sos-dialog-primary { border: 1px solid #0061b6; color: #fff; background: #0061b6; box-shadow: 0 9px 20px rgba(0, 97, 182, .2); }
+.sos-dialog-primary:hover:not(:disabled) { border-color: #004f96; background: #004f96; }
+.sos-dialog-primary:disabled { cursor: wait; opacity: .76; }
+
+@keyframes sos-dialog-enter {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @media (max-width: 680px) {
   .admin-console .sos-facts { grid-template-columns: 1fr; }
   .admin-console .sos-facts > div { border-right: 0; border-bottom: 1px solid var(--c-line); }
   .admin-console .sos-facts > div:last-child { border-bottom: 0; }
   .sos-detail-actions > * { width: 100%; }
+  .sos-dialog-backdrop { padding: 14px; }
+  .sos-status-dialog { padding: 30px 20px; border-radius: 22px; }
+  .sos-dialog-icon { width: 76px; height: 76px; border-radius: 21px; }
+  .sos-dialog-actions { width: 100%; }
+  .sos-dialog-actions button { flex: 1 1 140px; }
 }
 
 /* Liquid glass system, lấy trực tiếp nhịp màu và độ trong từ giao diện bản đồ công khai. */
@@ -781,8 +841,46 @@
 }
 
 .admin-console .contact-drawer {
+  height: 100dvh;
+  min-height: 0;
+  padding: 0 28px 28px;
   overscroll-behavior: contain;
 }
+
+.admin-console .drawer-backdrop {
+  z-index: 230;
+  isolation: isolate;
+}
+
+.admin-console .contact-drawer > header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  margin: 0 -28px;
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid rgba(0, 97, 182, .12);
+  background: rgba(241, 249, 253, .96);
+  box-shadow: 0 8px 18px rgba(0, 58, 106, .07);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.admin-console .contact-drawer > header > div { min-width: 0; }
+.admin-console .contact-drawer > header h2 { overflow-wrap: anywhere; }
+.admin-console .contact-drawer header .contact-drawer-close {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(0, 97, 182, .2);
+  border-radius: 12px;
+  color: #0061b6;
+  background: rgba(255, 255, 255, .86);
+  box-shadow: 0 7px 16px rgba(0, 79, 150, .09), inset 0 1px 0 #fff;
+}
+.admin-console .contact-drawer header .contact-drawer-close:hover { border-color: rgba(0, 97, 182, .4); background: #fff; }
 
 @media (max-width: 900px) {
   .admin-console .admin-nav { margin: 0; min-height: 100dvh; border-radius: 0 18px 18px 0; }
@@ -812,6 +910,8 @@
   .contact-panel .incident-rows strong,
   .contact-panel .incident-rows span { overflow-wrap: anywhere; }
   .contact-panel .incident-rows button { min-width: 76px; min-height: 42px; }
+  .admin-console .contact-drawer { padding: 0 18px 24px; }
+  .admin-console .contact-drawer > header { margin-inline: -18px; padding: 18px; }
 }
 
 @media (max-width: 420px) {
@@ -838,7 +938,7 @@
 .admin-login-card label { display: grid; gap: 7px; color: var(--c-ink); font-size: 13px; font-weight: 750; }
 .admin-login-card input { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .88); border-radius: 11px; outline: 0; color: var(--c-ink); background: rgba(255, 255, 255, .62); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .94); }
 .admin-login-card input:focus { border-color: #78a9d4; box-shadow: 0 0 0 3px rgba(0, 97, 182, .16), inset 0 1px 0 #fff; }
-.admin-login-card .primary-button { width: 100%; min-height: 48px; margin-top: 5px; }
+.admin-login-card .primary-button { width: 100%; min-height: 48px; margin-top: 5px; color: #fff; font-weight: 900; }
 .admin-login-card > a { margin-top: 20px; color: #0061b6; font-size: 13px; font-weight: 750; text-align: center; }
 .admin-login-error { margin: 0; padding: 10px 11px; border: 1px solid #efb9bf; border-radius: 9px; color: #923039; background: rgba(255, 241, 242, .82); font-size: 13px; line-height: 1.4; }
 .admin-login-pending { padding: 14px; border-radius: 11px; color: var(--c-muted); background: rgba(255, 255, 255, .58); font-size: 14px; text-align: center; }
@@ -890,6 +990,24 @@
 .nav-session span { overflow: hidden; color: #315e7b; font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .nav-session button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(0, 97, 182, .18); border-radius: 10px; color: #0061b6; background: rgba(255, 255, 255, .55); font-weight: 750; cursor: pointer; }
 .nav-session button:hover { background: rgba(255, 255, 255, .84); }
+
+/* Thẻ tổng quan: đường nhấn theo trạng thái ở mép trên, tiêu đề luôn quét được trên một dòng. */
+.admin-console .console-metric {
+  padding-top: 16px;
+  border-top: 4px solid rgba(255, 255, 255, .82);
+  border-bottom: 0;
+}
+
+.admin-console .console-metric.critical { border-top-color: #bc3942; }
+.admin-console .console-metric.warning { border-top-color: #d18420; }
+.admin-console .console-metric.safe { border-top-color: #4b9b6b; }
+
+.admin-console .console-metric p {
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 @media (max-width: 680px) {
   .admin-login-card { width: min(100% - 28px, 460px); margin-block: 28px; padding: 26px 22px; }
