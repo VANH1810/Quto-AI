@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 import traceback
@@ -36,7 +37,7 @@ from pipeline.config import (
     STATE_DIR,
     THRESHOLDS_PATH,
 )
-from pipeline.tick import TickData, iso_z
+from pipeline.tick import TickData, iso_z, tick_id
 
 DUMMY_BANNER = "!! SCALER=DUMMY !!"
 
@@ -170,7 +171,7 @@ def _write_artifacts(ctx, tick, tick_dir, nowcast_results, assessments, errors) 
         "non_physical": ctx.scaler_status == "dummy",
     })
     _dump_json(tick_dir / "assessments.json", {
-        "tick_id": f"{iso_z(tick.tick_time)}#{tick.seq:04d}",
+        "tick_id": tick_id(tick),
         "engine_errors": errors,
         "assessments": sorted(
             assessments, key=lambda a: (a["commune_code"], a["hazard_type"])
@@ -288,15 +289,9 @@ def run_live(args) -> int:
             client, tick_time, base_seq + offset, ctx.thresholds, histories,
             ctx.training_means, ctx.station_mode, ctx.station_csv,
         )
-        tick = _with_bucket(tick, bucket)
         states = execute_tick(ctx, tick, states, histories)
         state_store.save_tick_seq(STATE_DIR, base_seq + offset + 1)
     return 0
-
-
-def _with_bucket(tick: TickData, bucket: str) -> TickData:
-    provenance = {**tick.provenance, "hour_bucket": bucket}
-    return TickData(**{**vars(tick), "provenance": provenance})
 
 
 def run_replay(args) -> int:
@@ -338,7 +333,6 @@ def _rebuild_tick(ctx: RunContext, meta: dict[str, Any], tick_dir: Path):
             client, tick_time, meta["seq"], ctx.thresholds, histories,
             ctx.training_means, ctx.station_mode, ctx.station_csv,
         )
-        tick = _with_bucket(tick, meta["hour_bucket"])
     return tick, states, histories
 
 
@@ -365,8 +359,6 @@ def _context(args, source: str, persist: bool, exercise: bool | None = None) -> 
 
 
 def _resolve_exercise(actual_flag: bool) -> bool:
-    import os
-
     if not actual_flag:
         return True
     if os.environ.get("EWS_ALLOW_ACTUAL") != "1":

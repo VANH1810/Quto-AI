@@ -15,9 +15,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-# csv format: timestamp,commune_code,rain_1h,temp,rh,wind
-CSV_FIELDS = ("timestamp", "commune_code", "rain_1h", "temp", "rh", "wind")
-
 
 def load_observations(
     mode: str,

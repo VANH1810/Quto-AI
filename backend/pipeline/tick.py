@@ -37,3 +37,7 @@ class TickData:
 
 def iso_z(moment: datetime) -> str:
     return moment.isoformat().replace("+00:00", "Z")
+
+
+def tick_id(tick: TickData) -> str:
+    return f"{iso_z(tick.tick_time)}#{tick.seq:04d}"

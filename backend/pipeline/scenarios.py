@@ -56,7 +56,7 @@ def get_tick(name: str, seq: int) -> TickData:
     )
 
 
-def _calm_profile(tick_time: datetime, code: str):
+def _calm_profile(tick_time: datetime):
     obs = _obs(tick_time, 0.0, 0.0, 0.0, 0.5)
     forecast = _forecast_block(tick_time, first6_mm_h=0.2, rest_mm_h=0.2)
     antecedent = _antecedent(0, 10.0)
@@ -103,8 +103,8 @@ def _assemble_maps(tick_time: datetime, overrides: dict[str, tuple]):
     observations, forecasts, antecedents, nowcasts = {}, {}, {}, {}
     for commune in COMMUNES:
         obs, forecast, antecedent, nowcast = overrides.get(
-            commune.code, _calm_profile(tick_time, commune.code)
-        )
+            commune.code
+        ) or _calm_profile(tick_time)
         observations[commune.code] = obs
         forecasts[commune.code] = forecast
         antecedents[commune.code] = antecedent

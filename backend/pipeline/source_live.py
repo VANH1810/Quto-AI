@@ -73,6 +73,7 @@ def get_tick(
     provenance = {
         "model": "open_meteo:best_match (resolved model not exposed by API)",
         "model_run": f"best_match_{client.hour_bucket}",
+        "hour_bucket": client.hour_bucket,
         "points_fetched_at": points_raw.fetched_at if points_raw else None,
         "grid_fetched_at": grid_raws[0].fetched_at if grid_raws else None,
         "qm": qm_modes,
@@ -183,7 +184,3 @@ def _past_daily_totals(
 
 def top_of_hour(moment: datetime) -> datetime:
     return moment.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
-
-
-def tick_label(tick: TickData) -> str:
-    return iso_z(tick.tick_time)

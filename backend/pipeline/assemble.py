@@ -6,11 +6,7 @@ from typing import Any, Mapping
 
 from pipeline.communes import Commune
 from pipeline.config import NOWCAST_SKILL_PRIOR
-from pipeline.tick import TickData, iso_z
-
-
-def tick_id(tick: TickData) -> str:
-    return f"{iso_z(tick.tick_time)}#{tick.seq:04d}"
+from pipeline.tick import TickData, iso_z, tick_id
 
 
 def assemble_input(
