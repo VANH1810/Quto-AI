@@ -1,0 +1,16 @@
+# Inference environment for backend/nowcast (venv: .venv-tf3, Python 3.11).
+#
+# The mission brief asked for TensorFlow 2.15, but best_model_2.h5 was SAVED BY
+# KERAS 3 (InputLayer config uses `batch_shape`), so Keras 2 (TF 2.15, and
+# tf-keras legacy mode) cannot deserialize it. TF 2.16+/Keras 3 loads it
+# cleanly — see REPORT.md "Phase 0" for the recorded tracebacks.
+tensorflow-cpu>=2.16,<2.18
+numpy<2
+pandas
+scikit-learn
+requests
+jsonschema
+pyyaml
+pytest
+hypothesis
+ruff
