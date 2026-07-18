@@ -59,6 +59,8 @@ async def get_forecast(commune: Commune, days: int = 7) -> ForecastResponse:
 
         forecast = await _fetch_forecast(commune, days)
         ttl = max(0, settings.weather_cache_ttl_seconds)
+        if forecast.source.startswith("Synthetic"):
+            ttl = min(ttl, 60)
         if ttl > 0:
             _CACHE[key] = _CacheEntry(forecast=forecast.model_copy(deep=True), expires_at=now + ttl)
         return forecast
