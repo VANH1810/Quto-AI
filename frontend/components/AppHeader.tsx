@@ -29,7 +29,6 @@ export const AppHeader = memo(function AppHeader() {
       </button>
       <nav id="primary-navigation" className={`primary-nav${menuOpen ? " open" : ""}`} aria-label="Điều hướng chính">
         <Link className="active" href="/" aria-current="page" onClick={() => setMenuOpen(false)}>Bản đồ cảnh báo</Link>
-        <span aria-disabled="true" title="Chức năng dự báo khu vực chưa thuộc phạm vi endpoint home">Dự báo khu vực</span>
       </nav>
     </header>
   );
