@@ -55,4 +55,26 @@
 - P3: use the exact filled action-icon assets if they become maintained production assets.
 - P3: persist a fresh browser screenshot artifact for every dynamic API state if visual-regression automation is added later.
 
+## Desktop Top Alignment Pass
+
+- Source visual truth: `C:\Users\Admin\AppData\Local\Temp\codex-clipboard-91a2a92a-15f2-4d72-82fa-858904c341f1.png` and `C:\Users\Admin\AppData\Local\Temp\codex-clipboard-848bf6cb-125c-4aac-aa13-e165eae81e6e.png`, plus the clarified requirement to align both the first and last seven-day cards with the detail column.
+- Implementation screenshot: `E:\Documents\Quto-AI\frontend\design-qa\implementation-desktop-top-aligned.png`.
+- Combined comparison evidence: `E:\Documents\Quto-AI\frontend\design-qa\comparison-top-alignment.png`.
+- Viewport and state: 1440 x 900, `/forecast`, default loaded commune and current day selected.
+- Full-view comparison: the first seven-day card aligns with the upper overview frame, and the `24/7` card aligns with the lower edge of both lower detail panels.
+- Focused measurement: first card and overview top = 183.59375 px; last card and lower-grid bottom = 747.8541870117188 px; both differences = 0 px. The seven cards expand evenly to about 75.46 px while retaining the 6 px gaps.
+- Responsive evidence: no horizontal overflow at 1440 x 900, 1024 x 768, or mobile width. The desktop offset resets to 0 px at the tablet breakpoint, so tablet/mobile layout rules remain unchanged.
+- Fonts and typography, colors/tokens, image quality, and copy/content are unchanged by this targeted spacing fix.
+- P2 fixed: the earlier card list ended above the lower detail panels. Desktop grid rows now inherit the detail stack height and divide the available space evenly across all seven cards.
+- Post-fix evidence: no actionable P0, P1, or P2 findings remain for the requested alignment.
+
+### Even Action Distribution Pass
+
+- Source visual truth: `C:\Users\Admin\AppData\Local\Temp\codex-clipboard-8b776f8d-80d9-4ac0-8d69-c014cd52f805.png`.
+- The remaining action-panel height is divided into equal automatic rows, so the layout remains balanced with one, two, or three recommendations.
+- Focused measurement at 1440 x 900: action icon centers = 564.1875, 632.1875, and 700.1875 px; both center gaps = 68 px; top and bottom list whitespace = 34 px.
+- Mobile keeps natural row height with a 10 px gap and measured document width equals viewport width.
+- Typography, colors, icons, copy, panel dimensions, and interaction behavior are unchanged.
+- Post-fix browser evidence and the combined comparison show no remaining P0, P1, or P2 findings for action-list spacing.
+
 final result: passed
