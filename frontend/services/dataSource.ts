@@ -4,6 +4,7 @@ import { getApiBaseUrl } from "@/services/apiConfig";
 import type { CommuneAlert, CommuneCenter, CommuneGeoJSON, DashboardData, HazardType, ProvinceGeoJSON, RiskLevel, Shelter } from "@/types";
 import { dispersedRepresentativePointsFromFeature, representativePointFromFeature } from "@/utils/geo";
 import { HAZARD_META } from "@/utils/risk";
+import { mockShelterCapacity } from "@/utils/shelter";
 
 export interface AlertDataSource {
   getDashboardData(signal?: AbortSignal): Promise<DashboardData>;
@@ -78,7 +79,8 @@ function ensureShelterCoverage(boundaries: CommuneGeoJSON, sourceShelters: Shelt
         lon: point.lon,
         type,
         kind: type,
-        capacity: 0,
+        capacity: mockShelterCapacity(),
+        capacityStatus: "estimated",
         mock: true,
         coordinateStatus: "mock",
         sourceLabel: "Điểm đại diện nội bộ từ ranh giới GeoJSON",
@@ -192,7 +194,8 @@ class BackendAlertDataSource implements AlertDataSource {
       lon: shelter.lon,
       latitude: shelter.lat,
       longitude: shelter.lon,
-      capacity: shelter.capacity,
+      capacity: shelter.capacity > 0 ? shelter.capacity : mockShelterCapacity(),
+      capacityStatus: "estimated",
       type: shelter.kind,
       kind: shelter.kind,
       mock: shelter.mock ?? true,

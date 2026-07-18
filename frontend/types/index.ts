@@ -52,6 +52,7 @@ export interface CommuneAlert {
 
 export type ShelterKind = "school" | "community_hall" | "commune_office" | "health_station" | "high_ground";
 export type CoordinateStatus = "verified" | "mock";
+export type ShelterCapacityStatus = "official" | "estimated";
 
 export interface Shelter extends Coordinates {
   id: string;
@@ -62,6 +63,7 @@ export interface Shelter extends Coordinates {
   latitude: number;
   longitude: number;
   capacity: number;
+  capacityStatus: ShelterCapacityStatus;
   type: ShelterKind;
   kind: ShelterKind;
   mock: boolean;
