@@ -72,10 +72,12 @@ def _load_from_supabase() -> None:
         from app.services.citizens import citizens
         from app.services.shelters import shelters as shelter_store
         for row in supabase_repo.fetch_citizens():
-            row.pop("id", None); row.pop("preferred_lang", None)
+            row.pop("id", None)
+            row.pop("preferred_lang", None)
             citizens.upsert(CitizenCreate(**row))
         for row in supabase_repo.fetch_shelters():
-            row.pop("id", None); row.pop("distance_km", None)
+            row.pop("id", None)
+            row.pop("distance_km", None)
             shelter_store.create(ShelterCreate(**row))
         print("[startup] Đã nạp dữ liệu từ Supabase.")
     except Exception as e:  # noqa: BLE001

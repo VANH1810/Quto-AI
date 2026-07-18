@@ -42,17 +42,17 @@ async def generate_bulletins(event: HazardEvent, langs: list[Lang]) -> list[Bull
     settings = get_settings()
     provider = settings.llm_provider.lower()
     if provider == "mock":
-        return [_mock_bulletin(event, l) for l in langs]
+        return [_mock_bulletin(event, lang) for lang in langs]
 
     # Provider thật: sinh tiếng Việt trước rồi dịch sang ngôn ngữ còn lại.
     vi = await _llm_one(event, Lang.vi, settings)
     out = [vi]
-    for l in langs:
-        if l == Lang.vi:
+    for lang in langs:
+        if lang == Lang.vi:
             continue
-        out.append(await _llm_translate(vi, l, event, settings))
+        out.append(await _llm_translate(vi, lang, event, settings))
     # Giữ đúng thứ tự yêu cầu
-    order = {l.value: i for i, l in enumerate(langs)}
+    order = {lang.value: i for i, lang in enumerate(langs)}
     return sorted(out, key=lambda b: order.get(b.lang, 99))
 
 
