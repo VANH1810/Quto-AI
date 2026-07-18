@@ -59,6 +59,22 @@ def _assessment_from_dict(data: Mapping[str, Any]) -> HazardAssessment:
     return HazardAssessment(**fields)
 
 
+def next_tick_seq(state_dir: Path) -> int:
+    """Persistent monotonic tick counter: tick_ids must never repeat across runs."""
+    path = state_dir / "tick_counter.json"
+    if not path.is_file():
+        return 1
+    return int(json.loads(path.read_text(encoding="utf-8"))["next"])
+
+
+def save_tick_seq(state_dir: Path, next_seq: int) -> None:
+    state_dir.mkdir(parents=True, exist_ok=True)
+    path = state_dir / "tick_counter.json"
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"next": next_seq}), encoding="utf-8")
+    tmp.replace(path)
+
+
 def load_state(state_dir: Path, commune_code: str) -> CommuneState:
     path = state_dir / "commune_state" / f"{commune_code}.json"
     if not path.is_file():

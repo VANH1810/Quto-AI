@@ -52,6 +52,7 @@ class RunContext:
     station_mode: str = "none"
     station_csv: Path | None = None
     total_ticks: int = 1
+    position: int = 0  # display-only counter within this run
     _masks: Any = field(default=None, repr=False)
     _model_ok: bool | None = field(default=None, repr=False)
 
@@ -207,8 +208,9 @@ def _dump_json(path: Path, data: Any) -> None:
 def _console(ctx, tick, nowcast_results, assessments, errors, tick_dir) -> None:
     banner = f"  {DUMMY_BANNER}" if ctx.scaler_status == "dummy" else ""
     mode = "[EXERCISE]" if ctx.exercise else "[ACTUAL]"
-    print(f"\n── tick {tick.seq}/{ctx.total_ticks}  {iso_z(tick.tick_time)}  "
-          f"source={tick.source}  {mode}{banner} ──")
+    ctx.position += 1
+    print(f"\n── tick {ctx.position}/{ctx.total_ticks} (id #{tick.seq:04d})  "
+          f"{iso_z(tick.tick_time)}  source={tick.source}  {mode}{banner} ──")
     print(" fetch     " + _fetch_line(tick))
     subs = ",".join(f"{s['var']}:{s['mode']}"
                     for s in tick.grid_info.get("substitutions", [])) or "none"
@@ -279,14 +281,16 @@ def run_live(args) -> int:
     client = OpenMeteoClient(CACHE_DIR, bucket, use_cache=not args.no_cache)
     states = {c.code: state_store.load_state(STATE_DIR, c.code) for c in COMMUNES}
     histories = {c.code: antecedent_mod.load_history(STATE_DIR, c.code) for c in COMMUNES}
-    for seq in range(1, args.ticks + 1):
-        tick_time = start + timedelta(hours=seq - 1)
+    base_seq = state_store.next_tick_seq(STATE_DIR)
+    for offset in range(args.ticks):
+        tick_time = start + timedelta(hours=offset)
         tick, histories = source_live.get_tick(
-            client, tick_time, seq, ctx.thresholds, histories, ctx.training_means,
-            ctx.station_mode, ctx.station_csv,
+            client, tick_time, base_seq + offset, ctx.thresholds, histories,
+            ctx.training_means, ctx.station_mode, ctx.station_csv,
         )
         tick = _with_bucket(tick, bucket)
         states = execute_tick(ctx, tick, states, histories)
+        state_store.save_tick_seq(STATE_DIR, base_seq + offset + 1)
     return 0
 
 
