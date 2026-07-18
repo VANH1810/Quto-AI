@@ -12,14 +12,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import re
+import subprocess
+import tempfile
 import uuid
+from datetime import date
 
 from celery.result import AsyncResult
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
+from starlette.background import BackgroundTask
 
 from agent_worker.celery_app import app as celery_app
 from agent_worker import data_repo, tasks  # noqa: F401 — đăng ký task
+from agent_worker.config import get_worker_settings
 from agent_worker.infra.db import init_models
 
 app = FastAPI(
@@ -150,6 +158,139 @@ async def telegram_test(body: TelegramTestIn) -> dict:
     from agent_worker.tools import telegram_tool
     rec = await telegram_tool.send_message(body.chat_id, body.text)
     return rec.model_dump()
+
+
+# ================================================= DEMO: format + gửi bot2 + audio WAV
+
+# Điểm trú ẩn mẫu (dữ liệu do người dùng cung cấp) — dùng cho 2 endpoint demo.
+_DEMO_SHELTER = {
+    "name": "UBND xã Sín Thầu",
+    "address": "Xã Sín Thầu, tỉnh Điện Biên",
+    "kind": "Trụ sở công cộng",
+    "capacity": "100–200 người",
+    "lat": 22.3773617, "lon": 102.2534771,
+}
+
+
+async def _build_demo_alert(commune_code: str, hazard: str, level: int, lang: str) -> tuple[str, str]:
+    """Dựng (title, body) bản tin cho endpoint demo.
+
+    LLM-FIRST: LLM viết tình hình + hành động theo tình huống (generate_actions +
+    generate_bulletins), rồi nối trú ẩn UBND Sín Thầu (+km/phút SerpApi) + nguồn.
+    LLM lỗi/provider=mock → fallback KB + template. Không chạy graph/Celery.
+    """
+    from agent_worker.ai import llm
+    from agent_worker.shared import geo_data, weather
+    from agent_worker.shared.alert import HazardEvent, Provenance
+    from agent_worker.shared.common import HAZARD_META, Lang, risk_meta
+    from agent_worker.tools import maps_tool, message_formatter, recommend_tool
+
+    commune = geo_data.get_commune(commune_code)
+    commune_name = commune.name if commune else "Xã Sín Thầu"
+    commune_dict = commune.model_dump() if commune else {}
+
+    shelter = dict(_DEMO_SHELTER)
+    if commune:
+        route = await maps_tool.travel((commune.lat, commune.lon), (shelter["lat"], shelter["lon"]))
+        if route:
+            shelter["distance_text"] = route.get("distance_text")
+            shelter["duration_text"] = route.get("duration_text")
+
+    d = date.today()
+    date_txt = f"{d.day:02d}/{d.month:02d}"
+    rm = risk_meta(level)
+    settings = get_worker_settings()
+    forecast = weather._mock_danger(commune, 3, settings.mock_precip_mm).model_dump() if commune else {}
+    event = HazardEvent(
+        hazard=hazard, commune_code=commune_code, commune_name=commune_name,
+        risk_level=level, risk_color=rm["color"], risk_label=rm["label_vi"],
+        provenance=Provenance(source="MOCK (diễn tập)", rule="QĐ18 (demo)",
+                              triggered_by={"precip_24h_mm": settings.mock_precip_mm},
+                              observed_at=d.isoformat()),
+        recommended_actions=[])
+    lang_enum = Lang(lang) if lang in ("vi", "tai", "hmn") else Lang.vi
+
+    try:  # LLM format
+        event.recommended_actions = await llm.generate_actions(event, commune_dict, forecast)
+        b = (await llm.generate_bulletins(event, [lang_enum]))[0]
+        body = b.body + message_formatter.alert_suffix(shelter, "", "", lang)  # bỏ dòng nguồn
+        return b.title, body
+    except Exception as e:  # noqa: BLE001 — fallback KB template
+        logging.getLogger("agent_worker.api").warning("demo LLM format lỗi, fallback KB: %s", e)
+        actions = recommend_tool.lookup(hazard, level, commune_dict)
+        hz = HAZARD_META.get(hazard, {"label_vi": hazard})["label_vi"].lower()
+        situation = (f"Mưa lớn kéo dài, nguy cơ {hz} rất cao. "
+                     "Khẩn trương sơ tán người và tài sản đến nơi an toàn.")
+        return message_formatter.render_alert(commune_name, hazard, level, situation, actions,
+                                              shelter, source="", date="", lang=lang)
+
+
+class DemoTelegramIn(BaseModel):
+    chat_id: str
+    commune_code: str = "sin_thau"
+    hazard: str = "flash_flood"
+    level: int = 4
+    lang: str = "vi"
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "chat_id": "8665820339", "commune_code": "sin_thau",
+        "hazard": "flash_flood", "level": 4, "lang": "vi"}})
+
+
+@app.post("/demo/telegram-mock", tags=["Demo"],
+          summary="Mock + format bản tin → gửi qua bot Telegram thứ 2",
+          description="Dựng bản tin cảnh báo MOCK (template emoji + điểm trú ẩn UBND Sín Thầu) "
+                      "rồi gửi tới chat_id qua TELEGRAM_BOT_TOKEN_2. Không chạy graph/LLM.")
+async def demo_telegram_mock(body: DemoTelegramIn) -> dict:
+    """Gửi 2 bản tin (tiếng Việt + tiếng Hmong) qua bot 2, kèm link Google Maps chỉ đường."""
+    from agent_worker.tools import telegram_tool
+    token = get_worker_settings().telegram_bot_token_2
+    if not token:
+        raise HTTPException(400, "Chưa cấu hình TELEGRAM_BOT_TOKEN_2")
+    sent = []
+    for lg in ("vi", "hmn"):
+        title, msg = await _build_demo_alert(body.commune_code, body.hazard, body.level, lg)
+        rec = await telegram_tool.send_raw(token, body.chat_id, f"<b>{title}</b>\n{msg}")
+        sent.append({"lang": lg, "title": title, "body": msg, "dispatch": rec.model_dump()})
+    return {"chat_id": body.chat_id, "sent": sent}
+
+
+def _strip_for_tts(text: str) -> str:
+    """Bỏ thẻ HTML/URL/emoji/ký hiệu để đọc TTS mượt (giữ chữ + dấu câu tiếng Việt)."""
+    text = re.sub(r"<[^>]+>", "", text)          # bỏ thẻ HTML (vd <a href=...>), giữ nhãn
+    text = re.sub(r"https?://\S+", "", text)      # bỏ URL còn sót
+    text = re.sub(r"[✅🏠📍👥📡🧭🔴🟠🟡🔵🟢🟣🌊⛰️🌧️❄️🌫️⚠️]", " ", text)
+    text = text.replace("—", ",").replace("·", ",")
+    return re.sub(r"[ \t]+", " ", text).strip()
+
+
+def _tts_wav(text: str, lang: str = "vi") -> str:
+    """Sinh file WAV đọc bản tin bằng espeak-ng (offline). Trả đường dẫn file tạm."""
+    fd, path = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    voice = {"vi": "vi", "tai": "vi", "hmn": "vi"}.get(lang, "vi")
+    try:
+        subprocess.run(["espeak-ng", "-v", voice, "-s", "135", "-w", path, text],
+                       check=True, timeout=60, capture_output=True)
+    except FileNotFoundError as e:
+        os.remove(path)
+        raise HTTPException(500, "Thiếu 'espeak-ng' trong image — cần rebuild (đã thêm vào Dockerfile).") from e
+    except subprocess.CalledProcessError as e:
+        os.remove(path)
+        raise HTTPException(500, f"TTS lỗi: {e.stderr.decode('utf-8', 'ignore')[:150]}") from e
+    return path
+
+
+@app.get("/demo/alert-audio", tags=["Demo"],
+         summary="Lấy file WAV đọc bản tin cảnh báo (phát loa)",
+         description="Sinh bản tin MOCK rồi đọc thành giọng nói tiếng Việt (espeak-ng) → trả .wav "
+                     "để phát trên trình duyệt/loa. Mở trực tiếp URL này để nghe.")
+async def demo_alert_audio(commune_code: str = Query("sin_thau"),
+                           hazard: str = Query("flash_flood"),
+                           level: int = Query(4), lang: str = Query("vi")) -> FileResponse:
+    title, msg = await _build_demo_alert(commune_code, hazard, level, lang)
+    path = _tts_wav(_strip_for_tts(f"{title}. {msg}"), lang)
+    return FileResponse(path, media_type="audio/wav", filename="canh_bao.wav",
+                        background=BackgroundTask(os.remove, path))
 
 
 # ============================================================ CẢNH BÁO (AI Agent)

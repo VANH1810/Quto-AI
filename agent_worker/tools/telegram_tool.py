@@ -57,6 +57,32 @@ async def send_message(chat_id: str, text: str) -> DispatchRecord:
     )
 
 
+async def send_raw(token: str, chat_id: str, text: str) -> DispatchRecord:
+    """Gửi tin qua MỘT token bot chỉ định (dùng cho endpoint demo với bot thứ 2).
+
+    Luôn gọi Bot API thật nếu có token + chat_id (không phụ thuộc TELEGRAM_PROVIDER).
+    """
+    if not token or not chat_id:
+        return DispatchRecord(channel="telegram", target=str(chat_id or ""), recipients=1,
+                              delivered=0, status=DispatchStatus.failed,
+                              detail="Thiếu token hoặc chat_id")
+    url = _API.format(token=token, method="sendMessage")
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
+    try:
+        j = r.json()
+    except Exception:  # noqa: BLE001
+        j = {"ok": False, "description": r.text[:200]}
+    ok = bool(j.get("ok"))
+    if not ok:
+        log.warning("Telegram(bot2) sendMessage fail chat=%s: %s", chat_id, j.get("description"))
+    return DispatchRecord(
+        channel="telegram", target=str(chat_id), recipients=1, delivered=1 if ok else 0,
+        status=DispatchStatus.ok if ok else DispatchStatus.failed,
+        detail="Telegram OK" if ok else f"Telegram lỗi: {j.get('description', '')[:150]}",
+    )
+
+
 async def send(recipient: dict, title: str, body: str) -> DispatchRecord:
     """Gửi cảnh báo cho 1 người nhận (đọc chat_id từ recipient)."""
     chat_id = recipient.get("telegram_chat_id")
