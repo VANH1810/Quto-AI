@@ -60,11 +60,15 @@ export function RegionalForecast() {
       ?? null;
   }, [dashboardData]);
   const activeCommuneCode = selectedCommuneCode ?? gpsCommuneCode ?? fallbackCommuneCode;
+  const activeCommune = useMemo(
+    () => dashboardData?.communeCenters.find((commune) => commune.code === activeCommuneCode) ?? null,
+    [activeCommuneCode, dashboardData],
+  );
   const currentAlert = useMemo(
     () => dashboardData?.alerts.find((alert) => alert.communeCode === activeCommuneCode),
     [activeCommuneCode, dashboardData],
   );
-  const { data: overview, error: forecastError, isLoading: isForecastLoading } = useCommuneOverview(activeCommuneCode);
+  const { data: overview, error: forecastError, isLoading: isForecastLoading } = useCommuneOverview(activeCommune, currentAlert);
   const forecastDays = useMemo(
     () => overview ? buildRegionalForecast(overview, currentAlert) : [],
     [currentAlert, overview],
