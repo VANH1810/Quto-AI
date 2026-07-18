@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { memo, type RefObject, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BellRing, ChevronRight, ClipboardList, ExternalLink, FileCheck2, LogOut, Map, Menu, Navigation, Play, RefreshCw, Send, ShieldCheck, Siren, Square, UsersRound, Volume2, X } from "lucide-react";
+import { AlertTriangle, BellRing, CheckCircle2, ChevronRight, ClipboardList, ExternalLink, FileCheck2, LoaderCircle, LogOut, Map, Menu, Navigation, Play, RefreshCw, Send, ShieldCheck, Siren, Square, UsersRound, Volume2, X } from "lucide-react";
 import { useAdminSession } from "@/components/admin/AdminSessionProvider";
 import { getAdminCommunes } from "@/services/admin-scope-service";
 import { getAuditEntries, getAlerts, getDeliveryIncidents, getSpeakers, getUnreachedRecipients, markRecipientContacted, retryAlert } from "@/services/delivery-service";
@@ -30,6 +30,7 @@ export function AdminConsole({ page, alertId, sosId }: { page: AdminPage; alertI
   const { authState, token, admin, authenticate, logout } = useAdminSession();
   const [scope, setScope] = useState<AdminCommune[]>([]); const [risks, setRisks] = useState<CommuneRisk[]>([]); const [incidents, setIncidents] = useState<DeliveryIncident[]>([]); const [alerts, setAlerts] = useState<AdminAlert[]>([]); const [speakers, setSpeakers] = useState<Speaker[]>([]); const [sos,setSos]=useState<SOSRequest[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string>(); const [notice, setNotice] = useState<string>(); const [menuOpen, setMenuOpen] = useState(false); const [selected, setSelected] = useState<DeliveryIncident>(); const [recipients, setRecipients] = useState<UnreachedRecipients>();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const load = useCallback(async (activeToken?: string, signal?: AbortSignal) => {
     setLoading(true);
     setError(undefined);
@@ -57,12 +58,33 @@ export function AdminConsole({ page, alertId, sosId }: { page: AdminPage; alertI
     void load(token, controller.signal);
     return () => controller.abort();
   }, [authState, load, token]);
-  useEffect(() => { if (!selected) return; const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSelected(undefined); if (event.key === "Tab" && dialogRef.current) { const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>("button,a,[tabindex]:not([tabindex='-1'])")]; const first = focusable[0]; const last = focusable.at(-1); if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } } }; window.addEventListener("keydown", onKey); dialogRef.current?.querySelector<HTMLElement>("button")?.focus(); return () => window.removeEventListener("keydown", onKey); }, [selected]);
+  const closeContactDrawer = useCallback(() => {
+    setSelected(undefined);
+    window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
+  }, []);
+  useEffect(() => {
+    if (!selected) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeContactDrawer();
+      if (event.key === "Tab" && dialogRef.current) {
+        const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>("button,a,[tabindex]:not([tabindex='-1'])")];
+        const first = focusable[0]; const last = focusable.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    dialogRef.current?.querySelector<HTMLElement>("button")?.focus();
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow; };
+  }, [closeContactDrawer, selected]);
   const highestAlert = useMemo(() => alerts.reduce<AdminAlert | undefined>((highest, alert) => alert.status === "pending_approval" && (!highest || alert.event.risk_level > highest.event.risk_level) ? alert : highest, undefined), [alerts]);
   const onlineSpeakers = useMemo(() => speakers.filter((speaker) => speaker.status === "ONLINE").length, [speakers]);
   const sentToday = useMemo(() => alerts.reduce((sum, alert) => sum + alert.dispatches.reduce((count, dispatch) => count + dispatch.delivered, 0), 0), [alerts]);
   async function contact(recipientId: string) { if (!selected) return; await markRecipientContacted(recipientId, token); setRecipients((value) => value ? { ...value, unreachedCount: Math.max(0, value.unreachedCount - 1), deliveredCount: value.deliveredCount + 1, recipients: value.recipients.filter((item) => item.id !== recipientId) } : value); setNotice("Đã ghi nhận liên hệ trực tiếp."); }
   const handleOpenIncident = useCallback(async (incident: DeliveryIncident) => {
+    drawerTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setSelected(incident);
     setRecipients(undefined);
     try {
@@ -81,7 +103,7 @@ export function AdminConsole({ page, alertId, sosId }: { page: AdminPage; alertI
     <section className="console-main"><header className="console-header"><button className="menu-toggle" aria-label="Mở menu" onClick={() => setMenuOpen(true)}><Menu size={22} /></button><div><h1>{page === "overview" ? "Bảng điều hành PCTT" : nav.find((item) => item.page === page)?.label ?? "Admin"}</h1></div></header>
       {notice && <div className="console-notice" role="status" aria-live="polite">{notice}</div>}{error && <div className="console-error" role="alert">{error}<button onClick={() => void load(token)}>Thử lại</button></div>}
       {loading ? <ConsoleSkeleton /> : scope.length === 0 ? <EmptyScope /> : <PageContent page={page} alertId={alertId} sosId={sosId} scope={scope} risks={risks} incidents={incidents} alerts={alerts} speakers={speakers} sos={sos} highestAlert={highestAlert} onlineSpeakers={onlineSpeakers} sentToday={sentToday} onProcess={handleOpenIncident} onRetry={handleRetry} token={token} />}
-    </section>{selected && <ContactDrawer incident={selected} recipients={recipients} alert={alerts.find((item) => item.id === selected.alertId)} onClose={() => setSelected(undefined)} onContact={contact} onRetry={handleRetry} dialogRef={dialogRef} />}</main>;
+    </section>{selected && <ContactDrawer incident={selected} recipients={recipients} alert={alerts.find((item) => item.id === selected.alertId)} onClose={closeContactDrawer} onContact={contact} onRetry={handleRetry} dialogRef={dialogRef} />}</main>;
 }
 
 function AdminSessionLoader() {
@@ -91,7 +113,7 @@ function AdminSessionLoader() {
 function AdminLoginGate({ onAuthenticate }: { onAuthenticate: (email: string, password: string) => Promise<void> }) {
   const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string>();
   async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setSubmitting(true); setError(undefined); try { await onAuthenticate(email.trim(), password); } catch (reason) { setError(reason instanceof Error ? reason.message : "Không thể đăng nhập. Vui lòng thử lại."); } finally { setSubmitting(false); } }
-  return <main className="admin-console admin-login-shell"><header className="admin-public-header"><Link className="admin-public-brand" href="/" aria-label="Về bản đồ cảnh báo thiên tai"><Image src="/figma/dien-bien-science-logo.png" width={99} height={99} priority alt="Biểu trưng Sở Khoa học và Công nghệ Điện Biên" /><span><small>Sở Khoa học &amp; Công nghệ Điện Biên</small><strong>Cảnh báo thiên tai tỉnh Điện Biên</strong></span></Link><nav className="admin-public-nav" aria-label="Điều hướng hệ thống"><Link href="/">Bản đồ cảnh báo</Link><span aria-current="page">Điều hành PCTT</span></nav></header><section className="admin-login-card" aria-labelledby="admin-login-title"><div className="admin-login-mark"><ShieldCheck size={28} /></div><h1 id="admin-login-title">Đăng nhập</h1><form onSubmit={(event) => void submit(event)}><label>Email cán bộ<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required placeholder="ten.canbo@dienbien.gov.vn" /></label><label>Mật khẩu<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required minLength={6} /></label>{error && <p className="admin-login-error" role="alert">{error}</p>}<button className="primary-button" type="submit" disabled={submitting}>{submitting ? "Đang đăng nhập…" : "Đăng nhập điều hành"}</button></form><Link href="/">Quay lại bản đồ cảnh báo</Link></section></main>;
+  return <main className="admin-console admin-login-shell"><header className="admin-public-header"><Link className="admin-public-brand" href="/" aria-label="Về bản đồ cảnh báo thiên tai"><Image src="/figma/dien-bien-science-logo.png" width={99} height={99} priority alt="Biểu trưng Sở Khoa học và Công nghệ Điện Biên" /><span><small>Sở Khoa học &amp; Công nghệ Điện Biên</small><strong>Cảnh báo thiên tai tỉnh Điện Biên</strong></span></Link><nav className="admin-public-nav" aria-label="Điều hướng hệ thống"><Link href="/">Bản đồ cảnh báo</Link><span aria-current="page">Điều hành PCTT</span></nav></header><section className="admin-login-card" aria-labelledby="admin-login-title"><div className="admin-login-mark"><ShieldCheck size={28} /></div><h1 id="admin-login-title">Đăng nhập</h1><form onSubmit={(event) => void submit(event)}><label>Email cán bộ<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required placeholder="ten.canbo@dienbien.gov.vn" /></label><label>Mật khẩu<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required minLength={6} /></label>{error && <p className="admin-login-error" role="alert">{error}</p>}<button className="primary-button" type="submit" disabled={submitting}>{submitting ? "Đang đăng nhập…" : "Đăng nhập"}</button></form><Link href="/">Quay lại bản đồ cảnh báo</Link></section></main>;
 }
 
 type PageContentProps = { page: AdminPage; alertId?: string;sosId?:string; scope: AdminCommune[]; risks: CommuneRisk[]; incidents: DeliveryIncident[]; alerts: AdminAlert[]; speakers:Speaker[]; sos:SOSRequest[]; highestAlert?: AdminAlert; onlineSpeakers: number; sentToday: number; onProcess: (incident: DeliveryIncident) => void; onRetry: (id: string) => void;token?:string };
@@ -104,12 +126,99 @@ function Metric({ label, value, suffix, tone = "default" }: { label: string; val
 const RiskRows = memo(function RiskRows({ risks }: { risks: CommuneRisk[] }) { return risks.length ? <ul className="risk-rows">{risks.map((risk) => <li key={risk.code}><i style={{ background: risk.risk_color }} /><strong>{risk.name}</strong><span>{risk.top_hazard_label ?? risk.risk_label} · cấp {risk.risk_level}</span></li>)}</ul> : <p className="quiet">Không có nguy cơ đang hiệu lực.</p>; });
 const IncidentRows = memo(function IncidentRows({ incidents, onProcess }: { incidents: DeliveryIncident[]; onProcess: (item: DeliveryIncident) => void }) { return incidents.length ? <ul className="incident-rows">{incidents.map((item) => <li key={item.alertId}><div><strong>{item.alertTitle} · {item.communeName}</strong><span>Cấp {item.level} · {item.unreachedCount} người chưa nhận</span></div><button onClick={() => onProcess(item)}>Xử lý</button></li>)}</ul> : <p className="quiet">Không có sự cố gửi tin cần xử lý.</p>; });
 const SosRows = memo(function SosRows({items}:{items:SOSRequest[]}){return <ul className="incident-rows">{items.map(item=><li key={item.id}><div><strong><span className="sos-label">SOS</span> · {item.communeName??"Chưa xác định xã"}</strong><span>{item.peopleCount} người · {sosStatusLabel(item.status)} · {formatDate(item.createdAt)}</span></div><Link className="outline-button" href={`/admin/sos/${item.id}`}>Xem</Link></li>)}</ul>});
-function SosPage({items,detailId,token}:{items:SOSRequest[];detailId?:string;token?:string}){const [query,setQuery]=useState("");const [detail,setDetail]=useState<SOSRequest|undefined>(detailId?items.find(x=>x.id===detailId):undefined);const [notice,setNotice]=useState("");useEffect(()=>{if(detailId)void getSosDetail(detailId,token).then(setDetail)},[detailId,token]);async function transition(status:SOSStatus){if(!detail||!confirm(`Chuyển SOS sang ${status}?`))return;try{await updateSosStatus(detail.id,status,token);setDetail({...detail,status});setNotice("Đã cập nhật trạng thái và ghi audit log.")}catch{setNotice("Không thể cập nhật trạng thái SOS.")}}if(detailId){if(!detail)return <ConsoleSkeleton/>;const action=detail.status==="NEW"?{label:"Xác nhận tiếp nhận",next:"ACKNOWLEDGED" as const}:detail.status==="ACKNOWLEDGED"?{label:"Bắt đầu điều phối",next:"DISPATCHED" as const}:detail.status==="DISPATCHED"?{label:"Đã cứu trợ",next:"RESCUED" as const}:undefined;return <section className="detail-card sos-detail" aria-live="polite"><div className="sos-detail-status"><span className="level-dot level-3">SOS · {detail.status}</span>{detail.isDemo&&<p className="demo-warning">Dữ liệu demo — không sử dụng để điều phối thực tế.</p>}</div><div className="sos-detail-hero"><div><p className="sos-detail-kicker">Yêu cầu cứu hộ</p><h2>{detail.communeName??"Chưa xác định xã"}</h2><p>{detail.description}</p></div></div><dl className="sos-facts"><div><dt>Tọa độ hiện trường</dt><dd>{detail.latitude}, {detail.longitude}</dd></div><div><dt>Người cần cứu</dt><dd>{detail.peopleCount}</dd></div><div><dt>Trạng thái định vị</dt><dd>{detail.mappingStatus}</dd></div></dl><div className="sos-detail-actions"><a className="outline-button" href={createGoogleMapsDirectionsUrl(detail.latitude,detail.longitude)} target="_blank" rel="noopener noreferrer" aria-label={`Chỉ đường Google Maps đến ${detail.communeName??detail.id}`}><Navigation size={16}/> Mở chỉ đường <ExternalLink size={14}/></a>{action&&<button className="primary-button" onClick={()=>void transition(action.next)}>{action.label}</button>}</div><section className="sos-audit" aria-labelledby="sos-audit-heading"><div><p className="sos-detail-kicker">Theo dõi xử lý</p><h3 id="sos-audit-heading">Nhật ký điều phối</h3></div><ul className="simple-list">{detail.audit?.map((a,i)=><li key={i}><FileCheck2 size={17}/><div><strong>{a.step}</strong><small>{a.detail}</small></div></li>)}</ul></section>{notice&&<p className="console-notice">{notice}</p>}</section>}const shown=items.filter(item=>`${item.id} ${item.communeName??""} ${item.description}`.toLowerCase().includes(query.toLowerCase()));return <section className="console-card"><header><h2>SOS khẩn cấp</h2><span>{items.filter(x=>x.status==="NEW").length} mới</span></header><label className="delivery-search">Tìm SOS<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Mã SOS, xã hoặc nội dung"/></label><SosRows items={shown}/></section>}
+type SosDialogState = {
+  phase: "confirm" | "pending" | "success" | "error";
+  status: SOSStatus;
+  actionLabel: string;
+};
+
+function SosPage({ items, detailId, token }: { items: SOSRequest[]; detailId?: string; token?: string }) {
+  const [query, setQuery] = useState("");
+  const [detail, setDetail] = useState<SOSRequest | undefined>(detailId ? items.find((item) => item.id === detailId) : undefined);
+  const [dialog, setDialog] = useState<SosDialogState>();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => { if (detailId) void getSosDetail(detailId, token).then(setDetail); }, [detailId, token]);
+  useEffect(() => {
+    if (!dialog) return;
+    dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && dialog.phase !== "pending") closeDialog();
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const buttons = [...dialogRef.current.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+      const first = buttons[0]; const last = buttons.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dialog]);
+
+  function closeDialog() {
+    setDialog(undefined);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
+  async function transition(status: SOSStatus, actionLabel: string) {
+    if (!detail) return;
+    setDialog({ phase: "pending", status, actionLabel });
+    try {
+      await updateSosStatus(detail.id, status, token);
+      setDetail((current) => current ? { ...current, status } : current);
+      setDialog({ phase: "success", status, actionLabel });
+    } catch {
+      setDialog({ phase: "error", status, actionLabel });
+    }
+  }
+
+  if (detailId) {
+    if (!detail) return <ConsoleSkeleton />;
+    const action = detail.status === "NEW"
+      ? { label: "Xác nhận tiếp nhận", next: "ACKNOWLEDGED" as const }
+      : detail.status === "ACKNOWLEDGED"
+        ? { label: "Bắt đầu điều phối", next: "DISPATCHED" as const }
+        : detail.status === "DISPATCHED"
+          ? { label: "Đã cứu trợ", next: "RESCUED" as const }
+          : undefined;
+    return <>
+      <section className="detail-card sos-detail" aria-live="polite">
+        <div className="sos-detail-status"><span className="level-dot level-3">SOS · {detail.status}</span>{detail.isDemo && <p className="demo-warning">Dữ liệu demo — không sử dụng để điều phối thực tế.</p>}</div>
+        <div className="sos-detail-hero"><div><p className="sos-detail-kicker">Yêu cầu cứu hộ</p><h2>{detail.communeName ?? "Chưa xác định xã"}</h2><p>{detail.description}</p></div></div>
+        <dl className="sos-facts"><div><dt>Tọa độ hiện trường</dt><dd>{detail.latitude}, {detail.longitude}</dd></div><div><dt>Người cần cứu</dt><dd>{detail.peopleCount}</dd></div><div><dt>Trạng thái định vị</dt><dd>{detail.mappingStatus}</dd></div></dl>
+        <div className="sos-detail-actions"><a className="outline-button" href={createGoogleMapsDirectionsUrl(detail.latitude, detail.longitude)} target="_blank" rel="noopener noreferrer" aria-label={`Chỉ đường Google Maps đến ${detail.communeName ?? detail.id}`}><Navigation size={16} /> Mở chỉ đường <ExternalLink size={14} /></a>{action && <button ref={triggerRef} className="primary-button" onClick={() => setDialog({ phase: "confirm", status: action.next, actionLabel: action.label })}>{action.label}</button>}</div>
+        <section className="sos-audit" aria-labelledby="sos-audit-heading"><div><p className="sos-detail-kicker">Theo dõi xử lý</p><h3 id="sos-audit-heading">Nhật ký điều phối</h3></div><ul className="simple-list">{detail.audit?.map((entry, index) => <li key={index}><FileCheck2 size={17} /><div><strong>{entry.step}</strong><small>{entry.detail}</small></div></li>)}</ul></section>
+      </section>
+      {dialog && <SosStatusDialog state={dialog} dialogRef={dialogRef} onClose={closeDialog} onConfirm={() => void transition(dialog.status, dialog.actionLabel)} />}
+    </>;
+  }
+  const shown = items.filter((item) => `${item.id} ${item.communeName ?? ""} ${item.description}`.toLowerCase().includes(query.toLowerCase()));
+  return <section className="console-card"><header><h2>SOS khẩn cấp</h2><span>{items.filter((item) => item.status === "NEW").length} mới</span></header><label className="delivery-search">Tìm SOS<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mã SOS, xã hoặc nội dung" /></label><SosRows items={shown} /></section>;
+}
+
+function SosStatusDialog({ state, dialogRef, onClose, onConfirm }: { state: SosDialogState; dialogRef: RefObject<HTMLDivElement | null>; onClose: () => void; onConfirm: () => void }) {
+  const isAcknowledgement = state.status === "ACKNOWLEDGED";
+  const successTitle = isAcknowledgement ? "Đã xác nhận tiếp nhận SOS thành công." : state.status === "DISPATCHED" ? "Đã bắt đầu điều phối cứu hộ." : "Đã xác nhận hoàn tất cứu trợ.";
+  const successMessage = isAcknowledgement ? "Yêu cầu cứu hộ đã được ghi nhận và chuyển sang bước điều phối." : "Trạng thái SOS đã được cập nhật và ghi vào nhật ký điều phối.";
+  return <div className="sos-dialog-backdrop" role="presentation">
+    <div className={`sos-status-dialog is-${state.phase}`} role={state.phase === "confirm" ? "alertdialog" : "dialog"} aria-modal="true" aria-live="polite" aria-busy={state.phase === "pending"} aria-labelledby="sos-dialog-title" aria-describedby="sos-dialog-description" ref={dialogRef}>
+      <div className="sos-dialog-icon" aria-hidden="true">{state.phase === "success" ? <CheckCircle2 size={43} /> : state.phase === "pending" ? <LoaderCircle className="spin" size={42} /> : state.phase === "error" ? <AlertTriangle size={39} /> : <ShieldCheck size={40} />}</div>
+      <h2 id="sos-dialog-title">{state.phase === "confirm" ? `${state.actionLabel} SOS?` : state.phase === "pending" ? "Đang cập nhật trạng thái SOS…" : state.phase === "error" ? "Không thể cập nhật trạng thái SOS." : successTitle}</h2>
+      <p id="sos-dialog-description">{state.phase === "confirm" ? "Thao tác này sẽ được ghi vào nhật ký điều phối." : state.phase === "pending" ? "Vui lòng chờ trong giây lát." : state.phase === "error" ? "Vui lòng kiểm tra kết nối và thử lại." : successMessage}</p>
+      <div className="sos-dialog-actions">
+        {state.phase === "confirm" && <><button type="button" className="outline-button" onClick={onClose}>Hủy</button><button type="button" className="sos-dialog-primary" onClick={onConfirm}>Xác nhận</button></>}
+        {state.phase === "error" && <><button type="button" className="outline-button" onClick={onClose}>Đóng</button><button type="button" className="sos-dialog-primary" onClick={onConfirm}>Thử lại</button></>}
+        {state.phase === "success" && <button type="button" className="sos-dialog-primary" onClick={onClose}>Đóng</button>}
+        {state.phase === "pending" && <button type="button" className="sos-dialog-primary" disabled>Đang xử lý…</button>}
+      </div>
+    </div>
+  </div>;
+}
 function Alerts({ alerts, risks }: { alerts: AdminAlert[]; risks: CommuneRisk[] }) { const searchParams = useSearchParams(); const risksActive = searchParams.get("tab") === "risks"; const sortedRisks = useMemo(() => [...risks].sort((a, b) => b.risk_level - a.risk_level), [risks]); return <section className="console-card"><header><h2>Cảnh báo &amp; nguy cơ</h2><span>{risksActive ? `${risks.length} xã trong phạm vi` : `${alerts.length} cảnh báo trong phạm vi`}</span></header><div className="tabs" role="tablist" aria-label="Nội dung cảnh báo"><Link href="/admin/alerts" role="tab" aria-selected={!risksActive} className={!risksActive ? "active" : ""}>Cảnh báo</Link><Link href="/admin/alerts?tab=risks" role="tab" aria-selected={risksActive} className={risksActive ? "active" : ""}>Nguy cơ theo xã</Link></div>{risksActive ? <RiskRows risks={sortedRisks} /> : <div className="alert-list">{alerts.map((alert) => <Link href={`/admin/alerts/${alert.id}`} key={alert.id}><span className={`level-dot level-${alert.event.risk_level}`}>Cấp {alert.event.risk_level}</span><div><strong>{alert.bulletins[0]?.title ?? hazardLabel(alert.event.hazard)}</strong><small>{alert.event.commune_name} · {formatDate(alert.created_at)}</small></div><span>{alertStatusLabel(alert.status)}</span><ChevronRight size={18} /></Link>)}</div>}</section> }
 function AlertDetail({ alert, onRetry }: { alert?: AdminAlert; onRetry: (id: string) => void }) { return !alert ? <section className="console-empty"><h2>Không tìm thấy cảnh báo</h2><Link href="/admin/alerts">Quay lại danh sách cảnh báo</Link></section> : <section className="detail-card"><span className={`level-dot level-${alert.event.risk_level}`}>Cấp {alert.event.risk_level}</span><h2>{alert.bulletins[0]?.title}</h2><p>{alert.bulletins[0]?.body}</p><dl><div><dt>Xã</dt><dd>{alert.event.commune_name}</dd></div><div><dt>Phát hành</dt><dd>{formatDate(alert.created_at)}</dd></div><div><dt>Trạng thái</dt><dd>{alertStatusLabel(alert.status)}</dd></div></dl><button className="primary-button" onClick={() => onRetry(alert.id)}><RefreshCw size={16} /> Gửi lại kênh lỗi</button></section> }
 function Delivery({ incidents, onProcess }: { incidents: DeliveryIncident[]; onProcess: (item: DeliveryIncident) => void }) { const [tab, setTab] = useState("Cần liên hệ"); const [query, setQuery] = useState(""); const deferredQuery = useDeferredValue(query); const shown = useMemo(() => { const normalizedQuery = deferredQuery.trim().toLocaleLowerCase("vi"); return normalizedQuery ? incidents.filter((item) => `${item.alertTitle} ${item.communeName}`.toLocaleLowerCase("vi").includes(normalizedQuery)) : incidents; }, [deferredQuery, incidents]); return <section className="console-card delivery-page"><header><h2>Gửi tin và sự cố</h2></header><div className="tabs" role="tablist">{["Cần liên hệ", "Lịch sử gửi"].map((item) => <button key={item} role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</div>{tab === "Cần liên hệ" ? <><label className="delivery-search">Tìm cảnh báo hoặc xã<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ví dụ: Sín Thầu" /></label><IncidentRows incidents={shown} onProcess={onProcess} /></> : <p className="quiet">{tab} được tổng hợp từ nhật ký dispatch của từng cảnh báo.</p>}</section> }
 function Speakers({ items }: { items: Speaker[] }) { const [playingId, setPlayingId] = useState<string>(); useEffect(() => () => window.speechSynthesis?.cancel(), []); function togglePlayback(item: typeof speakerBroadcasts[number]) { if (!("speechSynthesis" in window)) return; if (playingId === item.id) { window.speechSynthesis.cancel(); setPlayingId(undefined); return; } window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(item.text); utterance.lang = "vi-VN"; utterance.rate = .94; utterance.onend = () => setPlayingId((active) => active === item.id ? undefined : active); utterance.onerror = () => setPlayingId((active) => active === item.id ? undefined : active); setPlayingId(item.id); window.speechSynthesis.speak(utterance); } const broadcasts = speakerBroadcasts.map((broadcast) => ({ ...broadcast, speaker: items.find((item) => item.id === broadcast.speakerId) })).filter((broadcast) => broadcast.speaker); return <section className="console-card speaker-broadcasts"><header><div><h2>Âm thanh đã phát</h2><p className="quiet">Nghe lại các bản tin đã được gửi tới loa truyền thanh.</p></div><span>{broadcasts.length} bản tin</span></header><ul className="broadcast-list">{broadcasts.map((broadcast) => <li key={broadcast.id}><Volume2 size={19} /><div><strong>{broadcast.title}</strong><small>{broadcast.speaker?.name} · {broadcast.speaker?.communeName}</small><span>{broadcast.playedAt} · {broadcast.duration}</span></div><button type="button" className={playingId === broadcast.id ? "is-playing" : ""} onClick={() => togglePlayback(broadcast)} aria-pressed={playingId === broadcast.id} aria-label={`${playingId === broadcast.id ? "Dừng" : "Nghe lại"} ${broadcast.title}`}>{playingId === broadcast.id ? <><Square size={15} /> Dừng</> : <><Play size={15} /> Nghe lại</>}</button></li>)}</ul></section> }
 function Audit() { const [items, setItems] = useState<AuditEntry[]>([]); const [selected, setSelected] = useState<AuditEntry>(); useEffect(() => { void getAuditEntries().then(setItems); }, []); return <section className="console-card audit-card"><header><h2>Nhật ký tương tác</h2><FileCheck2 size={19} /></header><ul className="audit-list">{items.map((item) => { const isOpen = selected?.id === item.id; const history = item.history ?? [{ occurredAt: item.occurredAt, detail: item.detail, actor: item.actor }]; return <li key={item.id}><button type="button" onClick={() => setSelected(isOpen ? undefined : item)} aria-expanded={isOpen} aria-controls={`audit-history-${item.id}`}><BellRing size={18} /><span><strong>{item.action}</strong><small>{item.detail} · {item.actor}</small></span><time>{item.occurredAt}</time><ChevronRight size={18} /></button>{isOpen && <section className="audit-history" id={`audit-history-${item.id}`} aria-live="polite"><header><div><p>Lịch sử sự kiện</p><h3>{item.action}</h3></div><button type="button" onClick={() => setSelected(undefined)} aria-label="Đóng lịch sử"><X size={18} /></button></header><ol>{history.map((event, index) => <li key={`${event.occurredAt}-${index}`}><time>{event.occurredAt}</time><div><strong>{event.detail}</strong><small>{event.actor}</small></div></li>)}</ol></section>}</li>; })}</ul></section> }
-function ContactDrawer({ incident, recipients, alert, onClose, onContact, onRetry, dialogRef }: { incident: DeliveryIncident; recipients?: UnreachedRecipients; alert?: AdminAlert; onClose: () => void; onContact: (id: string) => void; onRetry: (id: string) => void; dialogRef: RefObject<HTMLDivElement | null> }) { return <div className="drawer-backdrop" role="presentation"><div className="contact-drawer" role="dialog" aria-modal="true" aria-labelledby="contact-title" ref={dialogRef}><header><div><p>Cần liên hệ trực tiếp</p><h2 id="contact-title">{alert?.bulletins[0]?.title ?? incident.alertTitle}</h2><span>{incident.communeName} · Cấp {incident.level}</span></div><button aria-label="Đóng" onClick={onClose}><X size={20} /></button></header><div className="delivery-progress"><strong>{recipients?.deliveredCount ?? incident.deliveredCount}/{recipients?.targetedCount ?? incident.targetedCount}</strong><span>đã nhận</span></div>{!recipients ? <p className="quiet">Đang tải danh sách người chưa nhận…</p> : recipients.recipients.length === 0 ? <div className="console-empty"><ShieldCheck size={24} /><h3>Không còn người chờ liên hệ trực tiếp.</h3></div> : <ul className="recipient-drawer-list">{recipients.recipients.map((item) => <li key={item.id}><div><strong>{item.fullName}</strong><small>{item.address} · {item.phoneMasked ?? "Số điện thoại chưa có"}</small><span>{item.channel} · {item.reason}</span></div><button onClick={() => void onContact(item.id)}>Đã liên hệ</button></li>)}</ul>}<footer><button className="outline-button" onClick={() => void onRetry(incident.alertId)}><RefreshCw size={16} /> Gửi lại tất cả</button><button className="primary-button" onClick={() => void onRetry(incident.alertId)}><UsersRound size={16} /> Gửi danh sách trưởng bản</button><Link href={`/admin/alerts/${incident.alertId}`} onClick={onClose}>Mở chi tiết cảnh báo</Link></footer></div></div> }
+function ContactDrawer({ incident, recipients, alert, onClose, onContact, onRetry, dialogRef }: { incident: DeliveryIncident; recipients?: UnreachedRecipients; alert?: AdminAlert; onClose: () => void; onContact: (id: string) => void; onRetry: (id: string) => void; dialogRef: RefObject<HTMLDivElement | null> }) { return <div className="drawer-backdrop" role="presentation" onClick={onClose}><div className="contact-drawer" role="dialog" aria-modal="true" aria-labelledby="contact-title" ref={dialogRef} onClick={(event) => event.stopPropagation()}><header><div><p>Cần liên hệ trực tiếp</p><h2 id="contact-title">{alert?.bulletins[0]?.title ?? incident.alertTitle}</h2><span>{incident.communeName} · Cấp {incident.level}</span></div><button type="button" className="contact-drawer-close" aria-label="Đóng danh sách người chưa nhận" title="Đóng" onClick={onClose}><X size={21} aria-hidden="true" /></button></header><div className="delivery-progress"><strong>{recipients?.deliveredCount ?? incident.deliveredCount}/{recipients?.targetedCount ?? incident.targetedCount}</strong><span>đã nhận</span></div>{!recipients ? <p className="quiet">Đang tải danh sách người chưa nhận…</p> : recipients.recipients.length === 0 ? <div className="console-empty"><ShieldCheck size={24} /><h3>Không còn người chờ liên hệ trực tiếp.</h3></div> : <ul className="recipient-drawer-list">{recipients.recipients.map((item) => <li key={item.id}><div><strong>{item.fullName}</strong><small>{item.address} · {item.phoneMasked ?? "Số điện thoại chưa có"}</small><span>{item.channel} · {item.reason}</span></div><button onClick={() => void onContact(item.id)}>Đã liên hệ</button></li>)}</ul>}<footer><button className="outline-button" onClick={() => void onRetry(incident.alertId)}><RefreshCw size={16} /> Gửi lại tất cả</button><button className="primary-button" onClick={() => void onRetry(incident.alertId)}><UsersRound size={16} /> Gửi danh sách trưởng bản</button><Link href={`/admin/alerts/${incident.alertId}`} onClick={onClose}>Mở chi tiết cảnh báo</Link></footer></div></div> }
 function ConsoleSkeleton() { return <div className="console-skeleton" aria-label="Đang tải dữ liệu"><i /><i /><i /><i /><i /></div> }
 function EmptyScope() { return <section className="console-empty"><UsersRound size={28} /><h2>Chưa được gán phạm vi xã</h2><p>Liên hệ quản trị viên để được cấp quyền trước khi xem dữ liệu điều hành.</p></section> }
