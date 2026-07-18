@@ -1,0 +1,52 @@
+{
+  "feature_order": [
+    "AWS2",
+    "CAPE",
+    "V850",
+    "EWSS",
+    "KX",
+    "U250",
+    "U850",
+    "CIN",
+    "V250",
+    "R250",
+    "hour_sin",
+    "hour_cos",
+    "doy_sin",
+    "doy_cos"
+  ],
+  "mean": [
+    0.62928974,
+    561.97014862,
+    -0.9679381,
+    -0.05072001,
+    27.98555678,
+    7.94497262,
+    0.02489078,
+    -37.52692864,
+    0.99535225,
+    45.23274642,
+    -0.00101656,
+    -0.00017017,
+    0.12258652,
+    -0.04560955
+  ],
+  "scale": [
+    1.4796314,
+    486.180618,
+    4.93849182,
+    0.14783853,
+    7.83591776,
+    11.82170676,
+    4.92436774,
+    37.10618251,
+    9.84868316,
+    23.89720132,
+    0.70728648,
+    0.70692629,
+    0.95349886,
+    0.27153682
+  ],
+  "fitted_on": "DUMMY SYNTHETIC DATA (make_dummy_data.py, seed 42) - NON-PHYSICAL - integration placeholder only; predictions through this scaler are meaningless; REPLACE before any demo or evaluation",
+  "n_train_rows": 98189
+}
