@@ -5,4 +5,4 @@ export interface UnreachedRecipient { id: string; fullName: string; address: str
 export interface UnreachedRecipients { alertId: string; targetedCount: number; deliveredCount: number; unreachedCount: number; recipients: UnreachedRecipient[]; }
 export interface AdminAlert { id: string; status: string; created_at: string; event: { hazard: string; commune_code: string; commune_name: string; risk_level: number; risk_label: string }; bulletins: Array<{ lang: string; title: string; body: string }>; dispatches: Array<{ channel: string; recipients: number; delivered: number; status: string; detail: string }>; audit: Array<{ step: string; detail: string }>; }
 export interface Speaker { id: string; name: string; communeName: string; status: "ONLINE" | "OFFLINE" | "MAINTENANCE"; lastSeen: string; }
-export interface AuditEntry { id: string; action: string; detail: string; occurredAt: string; actor: string; }
+export interface AuditEntry { id: string; action: string; detail: string; occurredAt: string; actor: string; history?: Array<{ occurredAt: string; detail: string; actor: string }>; }

@@ -4,8 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { memo, useState } from "react";
+import { EmergencySOS } from "@/components/EmergencySOS";
 
-export const AppHeader = memo(function AppHeader() {
+interface AppHeaderProps {
+  activePage?: "map" | "forecast";
+  sosCommune?: { code: string; name: string } | null;
+}
+
+export const AppHeader = memo(function AppHeader({ activePage = "map", sosCommune }: AppHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -28,9 +34,11 @@ export const AppHeader = memo(function AppHeader() {
         {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
       </button>
       <nav id="primary-navigation" className={`primary-nav${menuOpen ? " open" : ""}`} aria-label="Điều hướng chính">
-        <Link className="active" href="/" aria-current="page" onClick={() => setMenuOpen(false)}>Bản đồ cảnh báo</Link>
-        <span aria-disabled="true" title="Chức năng dự báo khu vực chưa thuộc phạm vi endpoint home">Dự báo khu vực</span>
+        <Link className={activePage === "map" ? "active" : undefined} href="/" aria-current={activePage === "map" ? "page" : undefined} onClick={() => setMenuOpen(false)}>Bản đồ cảnh báo</Link>
+        <Link className={activePage === "forecast" ? "active" : undefined} href="/forecast" aria-current={activePage === "forecast" ? "page" : undefined} onClick={() => setMenuOpen(false)}>Dự báo khu vực</Link>
+        <Link href="/admin" onClick={() => setMenuOpen(false)}>Quản trị</Link>
       </nav>
+      <EmergencySOS commune={sosCommune} />
     </header>
   );
 });

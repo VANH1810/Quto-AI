@@ -2,14 +2,21 @@
 
 import asyncio
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.agents import risk_engine
 from app.providers import weather
 from app.schemas.common import HAZARD_META, risk_meta
+from app.schemas.commune_overview import (
+    ApiError,
+    CacheInfo,
+    CommuneOverviewMeta,
+    CommuneOverviewResponse,
+)
 from app.schemas.forecast import ForecastResponse
 from app.schemas.geo import Commune, CommuneRiskSummary
 from app.services.geo_data import all_communes, get_commune
+from app.services import commune_overview
 
 router = APIRouter(prefix="/api/v1", tags=["2 · Bản đồ & Dự báo"])
 
@@ -21,8 +28,53 @@ def list_communes() -> list[Commune]:
     return all_communes()
 
 
+@router.get(
+    "/communes/{commune_id}/overview",
+    response_model=CommuneOverviewResponse,
+    summary="2.4 · Tình hình cảnh báo + brief + việc cần làm + dự báo 7 ngày",
+)
+async def commune_overview_by_id(commune_id: str, response: Response) -> CommuneOverviewResponse:
+    """Return one normalized, read-only dashboard payload for any commune.
+
+    Input is `commune_id` from `GET /communes`. Output always uses the
+    `{data, meta, error}` envelope. The payload includes current warning state,
+    an AI-assisted brief, safe recommended tasks, and exactly seven forecast days.
+    """
+    canonical_id = commune_id.strip().lower()
+    ttl = max(0, commune_overview.get_settings().commune_overview_cache_ttl_seconds)
+    try:
+        data, cache_hit = await commune_overview.get_overview(canonical_id, days=7)
+    except commune_overview.CommuneNotFoundError:
+        response.status_code = 404
+        response.headers["Cache-Control"] = "no-store"
+        return CommuneOverviewResponse(
+            data=None,
+            meta=CommuneOverviewMeta(
+                commune_id=canonical_id,
+                generated_at=commune_overview.now_iso(),
+                cache=CacheInfo(hit=False, state="bypass", ttl_seconds=0),
+            ),
+            error=ApiError(code="commune_not_found", message=f"Không có xã/phường mã '{commune_id}'"),
+        )
+
+    degraded = data.forecast_7_days.source.startswith("Synthetic")
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+    response.headers["X-Cache"] = "HIT" if cache_hit else "MISS"
+    return CommuneOverviewResponse(
+        data=data,
+        meta=CommuneOverviewMeta(
+            commune_id=canonical_id,
+            generated_at=commune_overview.now_iso(),
+            cache=CacheInfo(hit=cache_hit, state="hit" if cache_hit else "miss", ttl_seconds=ttl),
+            degraded=degraded,
+            warnings=["Weather provider không khả dụng; đang dùng dữ liệu dự phòng xác định."] if degraded else [],
+        ),
+        error=None,
+    )
+
+
 @router.get("/forecast/{code}", response_model=ForecastResponse,
-            summary="2.2 · Dự báo 3–7 ngày cho 1 xã")
+            summary="2.2 · Dự báo 1–7 ngày cho 1 xã")
 async def forecast(code: str, days: int = Query(7, ge=1, le=16)) -> ForecastResponse:
     """Dự báo đã hạ quy mô về 1 xã (Open-Meteo, fallback synthetic khi offline).
 

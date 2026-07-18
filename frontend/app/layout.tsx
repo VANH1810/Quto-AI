@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
+import { LocationProvider } from "@/contexts/LocationContext";
 import "./base.css";
 
 const roboto = Roboto({
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
-      <body className={`${roboto.variable} ${roboto.className}`}>{children}</body>
+      <body className={`${roboto.variable} ${roboto.className}`}><LocationProvider>{children}</LocationProvider></body>
     </html>
   );
 }

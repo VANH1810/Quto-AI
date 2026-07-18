@@ -3,10 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { UserPosition } from "@/types";
 
-export function useGeolocation() {
+export type GeolocationStatus = "idle" | "locating" | "located";
+
+interface UseGeolocationOptions {
+  mockPosition: UserPosition;
+  autoLocate?: boolean;
+}
+
+export function useGeolocation({ mockPosition, autoLocate = false }: UseGeolocationOptions) {
   const [position, setPosition] = useState<UserPosition | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [status, setStatus] = useState<GeolocationStatus>("idle");
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
 
@@ -19,27 +27,22 @@ export function useGeolocation() {
   }, []);
 
   const locate = useCallback(() => {
-    if (!("geolocation" in navigator)) {
-      setError("Thiết bị không hỗ trợ định vị.");
-      return;
-    }
     const requestId = ++requestIdRef.current;
     setIsLocating(true);
+    setStatus("locating");
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (!mountedRef.current || requestId !== requestIdRef.current) return;
-        setPosition({ lat: coords.latitude, lon: coords.longitude, accuracy: coords.accuracy });
-        setIsLocating(false);
-      },
-      (reason) => {
-        if (!mountedRef.current || requestId !== requestIdRef.current) return;
-        setError(reason.code === reason.PERMISSION_DENIED ? "Bạn chưa cho phép truy cập vị trí." : "Không thể lấy vị trí hiện tại.");
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
-  }, []);
+    window.setTimeout(() => {
+      if (!mountedRef.current || requestId !== requestIdRef.current) return;
+      setPosition(mockPosition);
+      setStatus("located");
+      setIsLocating(false);
+    }, 0);
+  }, [mockPosition]);
 
-  return { position, error, isLocating, locate };
+  useEffect(() => {
+    if (!autoLocate) return;
+    locate();
+  }, [autoLocate, locate]);
+
+  return { position, error, isLocating, status, locate };
 }

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Nguồn thời tiết: openmeteo | mock
     weather_provider: str = "openmeteo"
     openmeteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_timeout_seconds: float = 12.0
+    weather_cache_ttl_seconds: int = 600
+    commune_overview_cache_ttl_seconds: int = 300
 
     # LLM: mock | openai | gemini | local
     llm_provider: str = "mock"
@@ -37,6 +40,13 @@ class Settings(BaseSettings):
     # Cấp độ tối thiểu cần người duyệt trước khi gửi (1..5). 3 = cam.
     human_approval_min_level: int = 3
 
+    # AI Agent service (agent_worker). Nhóm 5 (Cảnh báo) chạy theo:
+    #   local  = AI nội bộ trong backend (mặc định — KHÔNG đổi hành vi bản đang chạy).
+    #   remote = uỷ thác cho agent_worker qua HTTP (LangGraph + Celery). Cần agent_base_url.
+    agent_mode: str = "local"          # local | remote
+    agent_base_url: str = ""           # vd http://<IP-VM>:8100 hoặc https://ai.tenmien.vn
+    agent_timeout_seconds: float = 130.0
+
     # JWT
     jwt_secret: str = "dev-secret-doi-truoc-khi-len-that"
     jwt_algorithm: str = "HS256"
@@ -44,7 +54,9 @@ class Settings(BaseSettings):
 
     # Frontend public map và admin console chạy khác port khi phát triển local.
     # Chuỗi CSV giúp cấu hình .env đơn giản, không cần JSON list của Pydantic.
-    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+    cors_origins: str = (
+        "http://localhost:3000,http://localhost:3001,https://quto-ai.vercel.app"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from threading import Lock
+from time import monotonic
 
 from app.schemas.rescue import (RescueRequest, RescueStatus, RescueTeam,
                                 RescueTeamCreate, SosCreate, TeamStatus,
@@ -19,6 +21,19 @@ from app.services.geo_data import (all_communes, get_commune, haversine_km,
 from app.services.commune_boundary import resolve_commune_from_coordinates
 
 _AVG_SPEED_KMH = 30.0
+_SOS_COOLDOWN_SECONDS = 600
+
+
+class SOSRateLimitError(RuntimeError):
+    def __init__(self, retry_after: int, duplicate: bool) -> None:
+        self.retry_after = retry_after
+        self.duplicate = duplicate
+        message = (
+            "Tín hiệu trùng tọa độ và nội dung đang trong thời gian chờ. Vui lòng không gửi lại."
+            if duplicate
+            else f"Bạn vừa gửi tín hiệu SOS. Vui lòng chờ {retry_after} giây trước khi gửi lại."
+        )
+        super().__init__(message)
 
 
 def _now() -> str:
@@ -29,6 +44,8 @@ class RescueStore:
     def __init__(self) -> None:
         self._reqs: dict[str, RescueRequest] = {}
         self._teams: dict[str, RescueTeam] = {}
+        self._sos_rate_limits: dict[str, tuple[float, tuple[object, ...]]] = {}
+        self._sos_rate_lock = Lock()
         for commune in all_communes():  # 1 đội/xã
             self._add_team(RescueTeamCreate(
                 name=f"Đội cứu hộ {short_name(commune.name)}",
@@ -58,6 +75,42 @@ class RescueStore:
         return min(free, key=lambda t: haversine_km(lat, lon, t.base_lat, t.base_lon))
 
     # ---- SOS requests ----
+    @staticmethod
+    def _sos_fingerprint(data: SosCreate) -> tuple[object, ...]:
+        return (
+            round(data.lat, 5),
+            round(data.lon, 5),
+            data.danger_type.value,
+            data.num_people,
+            (data.note or "").strip().casefold(),
+        )
+
+    def create_sos_rate_limited(self, data: SosCreate, requester_keys: tuple[str, ...]) -> RescueRequest:
+        """Atomically enforce the public SOS cooldown before persisting a request."""
+        now = monotonic()
+        fingerprint = self._sos_fingerprint(data)
+        with self._sos_rate_lock:
+            limited: list[tuple[float, tuple[object, ...]]] = []
+            for key in requester_keys:
+                previous = self._sos_rate_limits.get(key)
+                if previous is not None and _SOS_COOLDOWN_SECONDS - (now - previous[0]) > 0:
+                    limited.append(previous)
+            if limited:
+                latest_at, latest_fingerprint = max(limited, key=lambda item: item[0])
+                remaining = _SOS_COOLDOWN_SECONDS - (now - latest_at)
+                duplicate = any(previous_fingerprint == fingerprint for _, previous_fingerprint in limited)
+                raise SOSRateLimitError(max(1, int(remaining + 0.999)), duplicate or latest_fingerprint == fingerprint)
+
+            request = self.create_sos(data)
+            for key in requester_keys:
+                self._sos_rate_limits[key] = (now, fingerprint)
+            if len(self._sos_rate_limits) > 5000:
+                cutoff = now - _SOS_COOLDOWN_SECONDS
+                self._sos_rate_limits = {
+                    key: record for key, record in self._sos_rate_limits.items() if record[0] >= cutoff
+                }
+            return request
+
     def create_sos(self, data: SosCreate) -> RescueRequest:
         from app.services.citizens import citizens
         from app.services.shelters import shelters
@@ -72,6 +125,8 @@ class RescueStore:
 
         # Chỉ nhận mã từ dữ liệu dân cư đã xác minh; còn lại point-in-polygon, không nearest.
         commune = get_commune(commune_code) if commune_code else None
+        if commune is None and data.commune_name:
+            commune = next((item for item in all_communes() if item.name == data.commune_name), None)
         if commune is None:
             commune = resolve_commune_from_coordinates(data.lat, data.lon)
         shelter = shelters.nearest(commune.code, data.lat, data.lon) if commune else None
@@ -84,7 +139,11 @@ class RescueStore:
             mapping_status="MAPPED" if commune else "UNMAPPED",
             priority=priority_of(data.danger_type), status=RescueStatus.pending,
             nearest_shelter_name=shelter.name if shelter else None,
-            created_at=_now(), updated_at=_now(), audit=[{"step":"create","detail":"Tạo SOS; đã mapping xã" if commune else "Tạo SOS; chưa xác định được xã"}],
+            created_at=_now(), updated_at=_now(), audit=[{
+                "step": "create",
+                "detail": ("Tạo SOS; đã mapping xã" if commune else "Tạo SOS; chưa xác định được xã")
+                + (f"; thiết bị báo lúc {data.reported_at.isoformat()}" if data.reported_at else ""),
+            }],
         )
         self._reqs[rid] = req
         supabase_repo.mirror(supabase_repo.push_rescue_requests, [req])
