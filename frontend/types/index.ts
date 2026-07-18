@@ -87,4 +87,5 @@ export type SelectedPlace =
 
 export interface UserPosition extends Coordinates {
   accuracy: number;
+  source: "gps" | "mock";
 }

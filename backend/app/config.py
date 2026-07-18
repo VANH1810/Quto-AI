@@ -47,7 +47,9 @@ class Settings(BaseSettings):
 
     # Frontend public map và admin console chạy khác port khi phát triển local.
     # Chuỗi CSV giúp cấu hình .env đơn giản, không cần JSON list của Pydantic.
-    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+    cors_origins: str = (
+        "http://localhost:3000,http://localhost:3001,https://quto-ai.vercel.app"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

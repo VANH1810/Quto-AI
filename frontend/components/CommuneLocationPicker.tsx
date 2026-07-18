@@ -153,11 +153,17 @@ export const CommuneLocationPicker = memo(function CommuneLocationPicker({
         )}
       </div>
 
-      <button className="locate-button" type="button" onClick={onLocate} disabled={isLocating}>
+      <button
+        className="locate-button"
+        type="button"
+        onClick={onLocate}
+        disabled={isLocating}
+        aria-label={isLocating ? "Đang tự động lấy vị trí" : "Tự định vị"}
+      >
         <LocateFixed size={18} className={isLocating ? "spin" : ""} />
-        <span>{isLocating ? "Đang xác định vị trí..." : hasUserPosition ? "Đã dùng vị trí chính xác" : "Dùng vị trí hiện tại của tôi"}</span>
+        <span>{isLocating ? "Đang tự động lấy vị trí..." : "Tự định vị"}</span>
       </button>
-      {locationError && <p className="inline-error">{locationError} Bạn có thể chọn xã/phường ở phía trên.</p>}
+      {locationError && <p className="inline-error" role="status">{locationError} Bạn có thể thử lại hoặc chọn xã/phường ở phía trên.</p>}
     </div>
   );
 });

@@ -109,7 +109,7 @@ export const DetailPanel = memo(function DetailPanel({ selection, alerts, commun
             <strong><ShelterHazardIcon size={18} /> Cấp {alert?.riskLevel ?? 1} · {alert?.hazardLabel ?? "Đang theo dõi"}</strong>
           </div>
           <a className="primary-action" href={googleMapsDirectionsUrl(selectedShelter, routeOrigin)} target="_blank" rel="noopener noreferrer"><Navigation size={18} /> Xem đường đi đến điểm trú ẩn</a>
-          <button className="secondary-action"><PhoneCall size={17} /> Gọi ban chỉ huy xã</button>
+          <a className="secondary-action" href="tel:+84547226311" aria-label="Gọi Ban chỉ huy xã theo số +84 547 226 311"><PhoneCall size={17} /> Gọi Ban chỉ huy xã</a>
         </div>
       </aside>
     );

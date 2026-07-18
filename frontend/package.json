@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "data:refresh-boundaries": "node scripts/fetch-dien-bien-boundaries.mjs"
+    "data:refresh-boundaries": "node scripts/fetch-dien-bien-boundaries.mjs",
+    "data:export-mocks": "node scripts/export-mock-snapshot.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

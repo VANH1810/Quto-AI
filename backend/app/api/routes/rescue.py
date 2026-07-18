@@ -4,29 +4,60 @@ Giống app bản đồ cứu hộ bão Yagi. `POST /sos` CÔNG KHAI (người g
 đăng nhập). Các API quản lý/điều phối cần Bearer token của cán bộ.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.schemas.rescue import (RescueRequest, RescueStatusUpdate, RescueTeam,
                                 RescueTeamCreate, SosCreate)
 from app.security import get_current_admin
-from app.services.rescue import rescue
+from app.services.rescue import SOSRateLimitError, rescue
 
 router = APIRouter(prefix="/api/v1/rescue", tags=["10 · Cứu hộ (SOS)"])
 
 
 # ---- CÔNG KHAI: người gặp nạn gửi SOS ----
-@router.post("/sos", response_model=RescueRequest, summary="10.1 · Gửi tín hiệu SOS (công khai)")
-def send_sos(body: SosCreate) -> RescueRequest:
+def _requester_keys(request: Request, body: SosCreate) -> tuple[str, ...]:
+    keys: list[str] = []
+    if body.cccd and body.cccd.strip():
+        keys.append(f"citizen:{body.cccd.strip()}")
+    device_id = request.headers.get("x-device-id", "").strip()
+    if device_id and re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", device_id):
+        keys.append(f"device:{device_id}")
+    if body.phone and body.phone.strip():
+        keys.append(f"phone:{body.phone.strip()}")
+    if not keys:
+        forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+        client_ip = forwarded or request.headers.get("x-real-ip", "").strip()
+        if not client_ip and request.client:
+            client_ip = request.client.host
+        keys.append(f"ip:{client_ip or 'unknown'}")
+    return tuple(dict.fromkeys(keys))
+
+
+@router.post("/sos", response_model=RescueRequest, status_code=201,
+             summary="10.1 · Gửi tín hiệu SOS (công khai)")
+def send_sos(body: SosCreate, request: Request, response: Response) -> RescueRequest:
     """Người gặp nạn gửi toạ độ + tình huống. KHÔNG cần đăng nhập.
 
-    **Input**: `SosCreate` = `{ lat, lon, danger_type, num_people, full_name?, phone?,
-    cccd?, note?, commune_code? }`. Bỏ trống `commune_code` → tự suy từ toạ độ; có `cccd`
+    **Input**: `SosCreate` = `{ lat, lon, danger_type, num_people, reported_at?, full_name?, phone?,
+    cccd?, note?, commune_code?, commune_name? }`. Bỏ trống `commune_code` → tự suy từ toạ độ; có `cccd`
     → tự điền tên/SĐT/xã từ DB công dân.
 
     **Output**: `RescueRequest` (id, `commune_name`, `priority`, `status=pending`,
     `nearest_shelter_name`) — xuất hiện ngay trên dashboard cứu hộ của admin.
     """
-    return rescue.create_sos(body)
+    try:
+        created = rescue.create_sos_rate_limited(body, _requester_keys(request, body))
+    except SOSRateLimitError as error:
+        raise HTTPException(
+            status_code=429,
+            detail=str(error),
+            headers={"Retry-After": str(error.retry_after)},
+        ) from error
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-SOS-Cooldown"] = "600"
+    return created
 
 
 # ---- ADMIN: dashboard điều phối ----

@@ -52,14 +52,19 @@ export function RegionalForecast() {
     if (!dashboardData || !position) return null;
     return dashboardData.boundaries.features.find((feature) => featureContainsCoordinates(feature, position))?.properties.code ?? null;
   }, [dashboardData, position]);
+  const gpsCommune = useMemo(() => {
+    if (!dashboardData || !gpsCommuneCode) return null;
+    const item = dashboardData.communeCenters.find((commune) => commune.code === gpsCommuneCode);
+    return item ? { code: item.code, name: item.name } : null;
+  }, [dashboardData, gpsCommuneCode]);
 
-  const fallbackCommuneCode = useMemo(() => {
+  const defaultCommuneCode = useMemo(() => {
     if (!dashboardData) return null;
     return dashboardData.alerts.reduce((highest, alert) => alert.riskLevel > highest.riskLevel ? alert : highest, dashboardData.alerts[0])?.communeCode
       ?? dashboardData.communeCenters[0]?.code
       ?? null;
   }, [dashboardData]);
-  const activeCommuneCode = selectedCommuneCode ?? gpsCommuneCode ?? fallbackCommuneCode;
+  const activeCommuneCode = selectedCommuneCode ?? gpsCommuneCode ?? defaultCommuneCode;
   const activeCommune = useMemo(
     () => dashboardData?.communeCenters.find((commune) => commune.code === activeCommuneCode) ?? null,
     [activeCommuneCode, dashboardData],
@@ -94,7 +99,7 @@ export function RegionalForecast() {
 
   return (
     <main className="app-shell forecast-shell">
-      <AppHeader activePage="forecast" />
+      <AppHeader activePage="forecast" sosCommune={gpsCommune} />
       <div className="forecast-background">
         <div className="forecast-layout">
           <aside className="forecast-sidebar" aria-labelledby="seven-day-heading">
