@@ -19,6 +19,7 @@ class AgentJobRequest(BaseModel):
 
     job_id: str = Field(default_factory=new_job_id)
     commune_code: str
+    commune: dict | None = None           # object Commune backend gửi (nguồn 45 xã) → khỏi phụ thuộc geo_data
     langs: list[str] = Field(default_factory=lambda: list(_DEFAULT_LANGS))
     forecast: dict | None = None          # nếu BackEnd đã kèm forecast thì graph khỏi gọi lại
     trigger: str = "manual"               # manual | scheduler | threshold
@@ -40,13 +41,12 @@ class DispatchMessage(BaseModel):
 
     job_id: str
     alert_id: str | None = None
-    channel: str                          # zalo_zns | sms | loudspeaker
+    channel: str                          # telegram | loudspeaker
     commune_code: str
     commune_name: str = ""
-    recipient: dict                       # {cccd, full_name, phone, address, lat, lon}
+    recipient: dict                       # {cccd, full_name, phone, telegram_chat_id, ...}
     lang: str = "vi"
     title: str = ""
     body: str = ""
-    zalo_template: dict | None = None     # data cho Zalo ZNS template
     nearest_shelter: dict | None = None   # {id, name, address, km}
     attempt: int = 0

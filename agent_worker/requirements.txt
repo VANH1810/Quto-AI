@@ -9,4 +9,6 @@ asyncpg>=0.29
 httpx>=0.27               # gọi Open-Meteo (weather) + Zalo API
 pydantic>=2.6
 pydantic-settings>=2.2
-# LLM provider thật (tuỳ chọn, lazy import): openai / google-generativeai
+# Agent tool-calling: gọi LLM trực tiếp bằng openai SDK (không LangChain), điều phối bằng LangGraph.
+openai>=1.40
+# LLM provider bổ sung (lazy import): google-generativeai (nếu dùng Gemini cho compose bulletins)

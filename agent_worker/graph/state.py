@@ -25,7 +25,7 @@ class AgentState(TypedDict, total=False):
     actions: list[str]
     recipients: dict            # {citizens:[...], admins:[...], shelters:{cccd: shelter}}
     bulletins: list[dict]       # kết quả LLM (đa ngữ)
-    zalo_payloads: list[dict]   # message đã format / người nhận
+    payloads: list[dict]        # message đã format / người nhận
 
     # điều khiển
     needs_human: bool
