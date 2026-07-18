@@ -41,7 +41,7 @@ async def generate_bulletins(event: HazardEvent, langs: list[Lang]) -> list[Bull
     settings = get_settings()
     provider = settings.llm_provider.lower()
     if provider == "mock":
-        return [_mock_bulletin(event, l) for l in langs]
+        return [_mock_bulletin(event, lang) for lang in langs]
 
     # Provider thật: sinh tiếng Việt trước, rồi dịch các thứ tiếng còn lại SONG SONG.
     vi = await _llm_one(event, Lang.vi, settings)
