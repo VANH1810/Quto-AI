@@ -34,7 +34,10 @@ Mặc định `NEXT_PUBLIC_DATA_SOURCE=mock`. Dữ liệu nằm tại:
 - `public/data/dien-bien-province.geojson`: polygon giới hạn tỉnh Điện Biên.
 - `public/data/dien-bien-communes.geojson`: 45 xã/phường mới có hiệu lực từ 01/07/2025. Mã xã dùng danh mục tại Quyết định 19/2025/QĐ-TTg; hình học là snapshot OpenStreetMap và cần được cơ quan chuyên môn thẩm định trước khi dùng cho nghiệp vụ chính thức.
 - `data/mockAlerts.ts`: cảnh báo và cấp nguy hiểm 1-5.
+- `data/mockForecast.ts`: dự báo 7 ngày, diễn biến rủi ro và khuyến nghị đồng bộ theo xã/cảnh báo đang chọn.
 - `data/shelters.ts`: điểm trú ẩn và metadata nguồn nội bộ.
+
+Ở chế độ mặc định `mock`, cả Home/bản đồ và route `/forecast` đều chạy trực tiếp từ dữ liệu đã được commit trong repository. Người dùng khác chỉ cần clone repo và build frontend, không cần `.env.local` hoặc backend. Chuyển `NEXT_PUBLIC_DATA_SOURCE=api` khi muốn cả hai màn hình lấy dữ liệu thật từ FastAPI.
 
 Làm mới snapshot ranh giới từ các OSM relation đã đối chiếu:
 

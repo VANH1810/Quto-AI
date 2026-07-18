@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { getCommuneOverview } from "@/services/forecastService";
+import type { CommuneAlert, CommuneCenter } from "@/types";
 import type { CommuneOverview } from "@/types/forecast";
 
-export function useCommuneOverview(communeCode: string | null) {
+export function useCommuneOverview(commune: CommuneCenter | null, alert?: CommuneAlert) {
   const [data, setData] = useState<CommuneOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(communeCode));
+  const [isLoading, setIsLoading] = useState(Boolean(commune));
 
   useEffect(() => {
     let isCurrent = true;
-    if (!communeCode) {
+    if (!commune) {
       setData(null);
       setError(null);
       setIsLoading(false);
@@ -21,7 +22,7 @@ export function useCommuneOverview(communeCode: string | null) {
     setData(null);
     setIsLoading(true);
     setError(null);
-    getCommuneOverview(communeCode)
+    getCommuneOverview(commune, alert)
       .then((overview) => {
         if (isCurrent) setData(overview);
       })
@@ -36,7 +37,7 @@ export function useCommuneOverview(communeCode: string | null) {
       });
 
     return () => { isCurrent = false; };
-  }, [communeCode]);
+  }, [alert, commune]);
 
   return { data, error, isLoading };
 }
