@@ -11,4 +11,6 @@ pydantic>=2.6
 pydantic-settings>=2.2
 # Agent tool-calling: gọi LLM trực tiếp bằng openai SDK (không LangChain), điều phối bằng LangGraph.
 openai>=1.40
+# Nguồn dữ liệu thật (DATA_SOURCE=supabase): supabase-py (PostgREST) — dùng AsyncClient.
+supabase>=2.6
 # LLM provider bổ sung (lazy import): google-generativeai (nếu dùng Gemini cho compose bulletins)

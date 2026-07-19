@@ -36,7 +36,7 @@ services:
       POSTGRES_USER: quto
       POSTGRES_PASSWORD: quto
       POSTGRES_DB: quto
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U quto"]
@@ -69,8 +69,13 @@ services:
       MOCK_PRECIP_MM: ${MOCK_PRECIP_MM:-220}
       ROUTE_PROVIDER: ${ROUTE_PROVIDER:-none}          # 'serpapi' để bật km/phút + POI
       SERPAPI_KEY: ${SERPAPI_KEY:-}
+      DATA_SOURCE: ${DATA_SOURCE:-local}               # 'supabase' = đọc dữ liệu thật từ Supabase
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}                  # service_role key
+      MIRROR_NOTIFICATIONS_SUPABASE: ${MIRROR_NOTIFICATIONS_SUPABASE:-true}
       TELEGRAM_PROVIDER: ${TELEGRAM_PROVIDER:-mock}   # 'live' để gửi Telegram thật
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_TOKEN_2: ${TELEGRAM_BOT_TOKEN_2:-}  # bot demo cho /demo/telegram-mock
       BACKEND_URL: http://host.docker.internal:8000   # callback về backend (host)
       SERVICE_TOKEN: doi-chuoi-bi-mat-nay             # == SERVICE_TOKEN của backend
     extra_hosts: ["host.docker.internal:host-gateway"]

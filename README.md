@@ -28,13 +28,38 @@ The challenge is not only forecasting the weather, but delivering warnings to th
 
 ## 2. The Project
 
-**Dien Bien Weather AI** is an AI-powered early-warning system that automatically delivers commune-level weather risks to residents and local authorities through Zalo, SMS, and public loudspeakers. When risks emerge during the night or early morning—when fewer officials are on duty—the system can still automatically identify communes facing danger, generate short warnings with clear recommended actions, and send them simultaneously across all channels.
+**Dien Bien Weather AI** is an AI-powered early-warning system that automatically delivers commune- and village-level weather risks to residents and local authorities through:
 
-## 3. Repository Structure
+- **AI-powered warning maps** — Interactive commune-level risk maps visualized on the dashboard.
+- **Online messaging apps** — Instant alerts via **Zalo** and **Telegram**.
+- **SMS** — Direct text messages to residents in high-risk areas.
+- **Local public loudspeakers** — Automated voice announcements via TTS broadcast.
+- **SOS reporting button** — A resident-facing button for emergency reporting on the dashboard.
+
+When risks emerge during the night or early morning—when fewer officials are on duty—the system can still automatically identify communes and villages facing danger, generate short warnings with clear recommended actions, send them simultaneously across all channels, and notify responsible officials through the government dashboard.
+
+
+
+## 3. Key Differentiator: Immediate Warning
+
+The core differentiator of **Dien Bien Weather AI** is its ability to act **instantly** when risks emerge — even during off-hours.
+
+**The problem:** Dangerous weather often strikes at night or in the early morning when government offices are closed and fewer officials are on duty. Manual warning workflows — assess, draft, approve, disseminate — can take hours, by which time residents may already be in harm's way.
+
+**How the system solves it:**
+
+1. **Automated commune/village identification** — The risk engine continuously evaluates forecast, nowcast, and observation data for every commune, flagging any location that crosses a danger threshold.
+2. **Instant bulletin generation** — The AI Agent (LangGraph + LLM) composes short, clear warnings in Vietnamese with specific recommended actions (e.g., "evacuate to shelter X", "avoid stream crossings"), tailored to each commune's hazard type and severity.
+3. **Simultaneous multi-channel delivery** — Warnings are dispatched in parallel through Telegram, Zalo, SMS, and automated loudspeaker broadcasts — no manual routing needed.
+4. **Official notification** — The government dashboard is updated in real time, and responsible commune/district officials receive a direct notification with the full situation report.
+
+This means a flash flood or landslide detected at 2:00 AM can have a warning on loudspeakers and in residents' phones by 2:05 AM — without anyone having to be awake at a desk.
+
+## 4. Repository Structure
 
 ```
 .
-├── backend/               # FastAPI backend (control plane, 12 API groups)
+├── backend/               # FastAPI backend
 │   ├── app/               #   API routes, services, schemas, security
 │   ├── risk_engine/       #   Deterministic risk engine (Decision 18/2021)
 │   ├── pipeline/          #   Live/scenario/replay pipeline runner
@@ -44,7 +69,7 @@ The challenge is not only forecasting the weather, but delivering warnings to th
 │   ├── db/                #   Schema.sql for Supabase
 │   └── scripts/           #   Build commune masks, fit quantile maps
 ├── agent_worker/          # AI Agent service (LangGraph + Celery)
-│   ├── api.py             #   FastAPI control plane (port 8100)
+│   ├── api.py             #   FastAPI control plane
 │   ├── tasks.py           #   Celery tasks (run_job, resume_job, dispatch)
 │   ├── graph/             #   LangGraph agent with tool-calling
 │   ├── tools/             #   Agent tools (weather, geo, risk, telegram, speaker)
@@ -66,11 +91,11 @@ The challenge is not only forecasting the weather, but delivering warnings to th
 │   ├── test_run.py        #   Pipeline run tests
 │   └── ...
 ├── pyproject.toml         # Risk engine project config
-├── scaler.json            # DUMMY scaler (placeholder for real training data)
+├── scaler.json            
 └── requirements-tf.txt    # TensorFlow dependencies
 ```
 
-## 4. Architecture & Data Flow
+## 5. Architecture & Data Flow
 
 ```mermaid
 flowchart LR
@@ -135,7 +160,7 @@ flowchart LR
 4. **Worker dispatch:** `agent_worker/api.py` receives warning requests, enqueues Celery tasks. `agent_worker/tasks.py` runs the LangGraph agent (`agent_worker/graph/`) which calls tools (risk engine, weather, geo, telegram), composes multi-lingual bulletins via LLM, and dispatches messages.
 5. **Channel delivery:** Messages are sent via Telegram bot (`agent_worker/tools/telegram_tool.py`) or loudspeaker (`agent_worker/tools/speaker_tool.py` — currently mock). Retry logic runs inside `agent_worker/tasks.py:_dispatch()` with configurable max retry count.
 
-## 5. Key Components
+## 6. Key Components
 
 ### Backend API (`backend/`) — [README](backend/README.md)
 - FastAPI application with 12 API groups (auth, forecast, citizens, admins, alerts, shelters, notifications, rescue, loudspeakers, SOS, delivery log, system).
@@ -168,9 +193,9 @@ flowchart LR
 - Resident dashboard: commune warning map, 7-day forecast, SOS button.
 - Admin dashboard: monitor warnings, delivery status, rescue assignment.
 
-## 6. Quick Start
+## 7. Quick Start
 
-### 6.1 Risk Engine standalone
+### 7.1 Risk Engine standalone
 
 ```bash
 cd backend
@@ -179,7 +204,7 @@ pytest tests/ -v                    # Run engine tests (determinism, rules, fuzz
 python -m pipeline.run --source scenario --scenario muong_pon  # Run Muong Pon scenario
 ```
 
-### 6.2 Backend API
+### 7.2 Backend API
 
 ```bash
 cd backend
@@ -189,7 +214,7 @@ cp .env.example .env
 uvicorn app.main:app --reload       # → http://localhost:8000/docs
 ```
 
-### 6.3 AI Agent Worker
+### 7.3 AI Agent Worker
 
 ```bash
 cd agent_worker
@@ -197,7 +222,7 @@ docker compose up --build            # Starts agent-api:8100 + workers + RabbitM
 # Swagger: http://localhost:8100/docs
 ```
 
-### 6.4 Frontend
+### 7.4 Frontend
 
 ```bash
 cd frontend
@@ -205,7 +230,7 @@ npm install
 npm run dev                          # → http://localhost:3000
 ```
 
-## 7. Deployment
+## 8. Deployment
 
 | Component | Method | Reference |
 |-----------|--------|-----------|

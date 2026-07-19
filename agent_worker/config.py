@@ -44,6 +44,13 @@ class WorkerSettings(BaseSettings):
     # KHÔNG áp cho fallback lỗi mạng (fallback giữ 'hiền' để tránh cảnh báo giả).
     mock_precip_mm: float = 220.0
 
+    # Nguồn dữ liệu nghiệp vụ (citizens/admins/shelters): local (Postgres seed) | supabase.
+    # 'supabase' → agent ĐỌC dữ liệu THẬT từ Supabase; trace + notifications vẫn ở Postgres local.
+    data_source: str = "local"
+    supabase_url: str = ""
+    supabase_key: str = ""            # service_role key (bỏ qua RLS)
+    mirror_notifications_supabase: bool = True   # ghi notifications song song lên Supabase
+
     # Bản đồ/định tuyến (none | serpapi) — km/phút đường thật + tìm POI trú ẩn qua SerpApi.
     route_provider: str = "none"
     serpapi_key: str = ""
@@ -59,6 +66,7 @@ class WorkerSettings(BaseSettings):
     # Telegram: mock | live. Gửi cảnh báo qua Telegram Bot API.
     telegram_provider: str = "mock"
     telegram_bot_token: str = ""      # từ @BotFather
+    telegram_bot_token_2: str = ""    # bot thứ 2 (dùng cho endpoint demo /demo/telegram-mock)
 
     # Tuning
     prefetch: int = 8
@@ -68,6 +76,21 @@ class WorkerSettings(BaseSettings):
     def broker_url(self) -> str:
         """Broker Celery hiệu dụng: CELERY_BROKER_URL nếu đặt, ngược lại dùng Redis."""
         return self.celery_broker_url or self.redis_url
+
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        """Chuẩn hoá DATABASE_URL về dạng asyncpg cho SQLAlchemy.
+
+        Railway/Render/Supabase cấp `postgres://` hoặc `postgresql://` (đồng bộ). SQLAlchemy
+        async cần `postgresql+asyncpg://`. Bỏ luôn query (?sslmode=...) mà asyncpg không nhận.
+        """
+        url = self.database_url
+        for prefix in ("postgresql+asyncpg://", "postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                if prefix != "postgresql+asyncpg://":
+                    url = "postgresql+asyncpg://" + url[len(prefix):]
+                break
+        return url.split("?", 1)[0]
 
 
 @lru_cache
