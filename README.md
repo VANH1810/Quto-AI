@@ -239,6 +239,14 @@ npm run dev                          # → http://localhost:3000
 | AI Agent | Docker Compose | `agent_worker/docker-compose.prod.yml` |
 | Database | Supabase | `backend/db/schema.sql` |
 
+### Live Services
+
+| Component | Live URL |
+|-----------|----------|
+| Backend API (Render) | [https://quto-ai.onrender.com](https://quto-ai.onrender.com) · [Swagger](https://quto-ai.onrender.com/docs) · [Health](https://quto-ai.onrender.com/health) |
+| Frontend (Vercel) | [https://quto-ai-eta.vercel.app](https://quto-ai-eta.vercel.app) |
+| AI Agent Worker (Render) | [https://quto-ai-2.onrender.com](https://quto-ai-2.onrender.com) · [Swagger](https://quto-ai-2.onrender.com/docs) |
+
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions.
 
 ## 9. License
