@@ -44,6 +44,13 @@ class WorkerSettings(BaseSettings):
     # KHÔNG áp cho fallback lỗi mạng (fallback giữ 'hiền' để tránh cảnh báo giả).
     mock_precip_mm: float = 220.0
 
+    # Nguồn dữ liệu nghiệp vụ (citizens/admins/shelters): local (Postgres seed) | supabase.
+    # 'supabase' → agent ĐỌC dữ liệu THẬT từ Supabase; trace + notifications vẫn ở Postgres local.
+    data_source: str = "local"
+    supabase_url: str = ""
+    supabase_key: str = ""            # service_role key (bỏ qua RLS)
+    mirror_notifications_supabase: bool = True   # ghi notifications song song lên Supabase
+
     # Bản đồ/định tuyến (none | serpapi) — km/phút đường thật + tìm POI trú ẩn qua SerpApi.
     route_provider: str = "none"
     serpapi_key: str = ""

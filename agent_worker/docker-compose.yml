@@ -69,6 +69,10 @@ services:
       MOCK_PRECIP_MM: ${MOCK_PRECIP_MM:-220}
       ROUTE_PROVIDER: ${ROUTE_PROVIDER:-none}          # 'serpapi' để bật km/phút + POI
       SERPAPI_KEY: ${SERPAPI_KEY:-}
+      DATA_SOURCE: ${DATA_SOURCE:-local}               # 'supabase' = đọc dữ liệu thật từ Supabase
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}                  # service_role key
+      MIRROR_NOTIFICATIONS_SUPABASE: ${MIRROR_NOTIFICATIONS_SUPABASE:-true}
       TELEGRAM_PROVIDER: ${TELEGRAM_PROVIDER:-mock}   # 'live' để gửi Telegram thật
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_TOKEN_2: ${TELEGRAM_BOT_TOKEN_2:-}  # bot demo cho /demo/telegram-mock
