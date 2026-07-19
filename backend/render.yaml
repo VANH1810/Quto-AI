@@ -15,6 +15,11 @@ services:
         value: openmeteo
       - key: LLM_PROVIDER
         value: mock
+      # Uỷ thác AI cho agent_worker (Render) qua HTTP.
+      - key: AGENT_MODE
+        value: remote
+      - key: AGENT_BASE_URL
+        value: https://quto-ai-2.onrender.com
       - key: CORS_ORIGINS
         value: http://localhost:3000,http://localhost:3001,https://quto-ai.vercel.app
       - key: JWT_SECRET

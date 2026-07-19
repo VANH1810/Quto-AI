@@ -187,6 +187,7 @@ TOKEN=$(curl -s -X POST https://quto-ai.onrender.com \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
 # 2. Trigger Muong Pon scenario
-curl -s -X POST https://quto-ai.onrender.com/dev/scenario/muong-pon-2024 \
+Truy cập vào link dưới và tìm /dev/scenario/muong-pon-2024 link này để test
+curl -s -X POST https://quto-ai.onrender.com \
   -H "Authorization: Bearer $TOKEN" | python -m json.tool
 ```
