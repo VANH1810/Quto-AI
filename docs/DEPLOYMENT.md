@@ -2,6 +2,20 @@
 
 ---
 
+## 0. Live Deployment (production URLs)
+
+| Component | Live URL | Notes |
+|-----------|----------|-------|
+| **Frontend** (Vercel) | https://quto-ai.vercel.app | Next.js app |
+| **Backend API** (Render) | https://quto-ai.onrender.com | [Swagger](https://quto-ai.onrender.com/docs) · [Health](https://quto-ai.onrender.com/health) |
+| **AI Agent Worker** (Render) | https://quto-ai-2.onrender.com | [Swagger](https://quto-ai-2.onrender.com/docs) · [Health](https://quto-ai-2.onrender.com/health) |
+
+> The AI Agent Worker runs on Render **free** as a single web service (FastAPI + Celery
+> worker via `honcho`), with **Render Key Value (Redis)** as broker/result backend and
+> **Render Postgres** for data. See §4 for the setup.
+
+---
+
 ## 1. Prerequisites
 
 | Component | Requirement |
@@ -37,15 +51,20 @@ npx vercel --prod
 # - Output Directory: .next
 ```
 
+**Live:** https://quto-ai.vercel.app
+
 **Environment variables** (set in Vercel dashboard):
 
-| Variable | Description |
+| Variable | Value |
 |----------|-------------|
-| `NEXT_PUBLIC_API_URL` | Backend API URL (e.g., `https://api.onrender.com`) |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://quto-ai.onrender.com` (live backend) |
+| `APP_BACKEND_URL` | `https://quto-ai.onrender.com` |
 
 ## 3. Backend (Render / Docker)
 
 ### Render
+
+**Live:** https://quto-ai.onrender.com ([Swagger](https://quto-ai.onrender.com/docs))
 
 The backend has a `render.yaml` blueprint for Render Blueprint deployment:
 
@@ -67,13 +86,13 @@ services:
 **Environment variables:**
 
 ```
-DB_BACKEND=memory
+DB_BACKEND=supabase
 LLM_PROVIDER=mock
-WEATHER_PROVIDER=mock
+WEATHER_PROVIDER=openmeteo
 AGENT_MODE=remote
-AGENT_BASE_URL=https://agent-worker.onrender.com:8100
+AGENT_BASE_URL=https://quto-ai-2.onrender.com
 HUMAN_APPROVAL_MIN_LEVEL=3
-CORS_ORIGINS=https://your-frontend.vercel.app
+CORS_ORIGINS=https://quto-ai.vercel.app
 JWT_SECRET=<random-secret>
 ```
 
@@ -95,13 +114,29 @@ docker compose up --build
 # Starts: RabbitMQ, Redis, Postgres, agent-api, agent-worker, dispatch-worker
 ```
 
-### Production stack (Redis-only, no RabbitMQ)
+### Production — Render free (live: https://quto-ai-2.onrender.com)
 
-The production stack at `agent_worker/docker-compose.prod.yml` uses Redis as both broker and result backend (reducing resource usage):
+Runs as **one Render web service** combining FastAPI + Celery worker via `honcho`
+(free tier has no separate background workers). Broker = **Render Key Value (Redis)**,
+data = **Render Postgres**. See [agent_worker/RENDER.md](../agent_worker/RENDER.md).
+
+- **Docker Command:** `honcho -f agent_worker/Procfile start`
+- **Root/Dockerfile/Context:** `agent_worker`
+- **Env:** `REDIS_URL` (Key Value internal URL), `DATABASE_URL` (Postgres internal URL),
+  `LLM_PROVIDER=fpt`, `FPT_API_KEY`, `WEATHER_PROVIDER=openmeteo`, `HUMAN_APPROVAL_MIN_LEVEL=3`.
+  Do **not** set `CELERY_BROKER_URL` → broker falls back to Redis.
+
+> ⚠️ Render free web sleeps after 15 min idle (≈50s cold start) and has 512 MB RAM.
+> Keep warm by pinging `/health` (e.g. UptimeRobot). If OOM, host on Hugging Face
+> Spaces (16 GB, free) + Upstash Redis + Neon Postgres.
+
+### Production stack (self-hosted, Redis-only, no RabbitMQ)
+
+For a VM/VPS, `agent_worker/docker-compose.prod.yml` uses Redis as both broker and result backend:
 
 ```bash
 cd agent_worker
-cp .env.example .env
+cp .env.prod.example .env
 # Edit .env for production
 docker compose -f docker-compose.prod.yml up -d
 ```
@@ -135,8 +170,8 @@ This creates 11 tables: citizens, admins, alerts, notifications, shelters, rescu
 
 ```bash
 # Via backend API
-curl -X POST https://your-backend.onrender.com/dev/seed
-curl -X POST https://your-backend.onrender.com/dev/supabase/push-seed
+curl -X POST https://quto-ai.onrender.com/dev/seed
+curl -X POST https://quto-ai.onrender.com/dev/supabase/push-seed
 ```
 
 ## 6. Post-Deployment Verification
@@ -146,14 +181,14 @@ After deploying each component:
 ### Backend health check
 
 ```bash
-curl https://your-backend.onrender.com/health
+curl https://quto-ai.onrender.com/health
 # Expected: {"status":"ok","version":"0.4.0","db_backend":"memory",...}
 ```
 
 ### AI Worker health check
 
 ```bash
-curl https://your-agent-worker.onrender.com:8100/health
+curl https://quto-ai-2.onrender.com/health
 # Expected: {"status":"ok","broker":"...","backend":"redis"}
 ```
 
@@ -161,12 +196,12 @@ curl https://your-agent-worker.onrender.com:8100/health
 
 ```bash
 # 1. Login
-TOKEN=$(curl -s -X POST https://your-backend.onrender.com/auth/login \
+TOKEN=$(curl -s -X POST https://quto-ai.onrender.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"canbo.muong_pon@dienbien.gov.vn","password":"123456"}' \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
 # 2. Trigger Muong Pon scenario
-curl -s -X POST https://your-backend.onrender.com/dev/scenario/muong-pon-2024 \
+curl -s -X POST https://quto-ai.onrender.com/dev/scenario/muong-pon-2024 \
   -H "Authorization: Bearer $TOKEN" | python -m json.tool
 ```

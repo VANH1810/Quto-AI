@@ -2,6 +2,15 @@
 
 FastAPI backend (control plane) for the commune-level disaster early-warning system.
 
+## 🌐 Live Deployment
+
+| Component | Live URL |
+|-----------|----------|
+| **Backend API** (Render) | **https://quto-ai.onrender.com** · [Swagger](https://quto-ai.onrender.com/docs) · [Health](https://quto-ai.onrender.com/health) |
+| Frontend (Vercel) | https://quto-ai-eta.vercel.app |
+| AI Agent Worker (Render) | https://quto-ai-2.onrender.com · [Swagger](https://quto-ai-2.onrender.com/docs) |
+
+### Local dev
 - **Swagger UI:** `http://localhost:8000/docs`
 - **Health:** `GET /health`
 - **Start:** `uvicorn app.main:app --reload`
@@ -113,7 +122,8 @@ The `main.py:_bootstrap()` function ensures the system always starts with data:
 ## 4. Health Check
 
 ```bash
-curl http://localhost:8000/health
+curl https://quto-ai.onrender.com/health      # live
+curl http://localhost:8000/health              # local
 # → {"status":"ok","version":"0.4.0","db_backend":"memory",
 #    "weather_provider":"mock","llm_provider":"mock","human_approval_min_level":3}
 ```
@@ -142,7 +152,7 @@ All settings via `.env` (see `.env.example`):
 | `WEATHER_PROVIDER` | `mock` | Weather API (`mock` / `open-meteo`) |
 | `DISPATCH_PROVIDER` | `mock` | Dispatch engine (`mock` / `agent_worker`) |
 | `AGENT_MODE` | `local` | AI agent mode (`local` / `remote`) |
-| `AGENT_BASE_URL` | — | agent_worker URL for remote mode |
+| `AGENT_BASE_URL` | — | agent_worker URL for remote mode (live: `https://quto-ai-2.onrender.com`) |
 | `HUMAN_APPROVAL_MIN_LEVEL` | `3` | Risk level requiring human approval |
 | `JWT_SECRET` | — | Token signing key |
 | `SUPABASE_URL/KEY` | — | Supabase credentials |

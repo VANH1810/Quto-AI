@@ -1,6 +1,12 @@
 ﻿# AI Agent Worker — Dien Bien Weather AI
 
-The AI Agent Worker is a **Celery-based background job system** that receives warning requests, runs a LangGraph agent with tool-calling, composes multi-lingual bulletins, and dispatches alerts to residents. It runs alongside the backend API and operates through RabbitMQ queues.
+The AI Agent Worker is a **Celery-based background job system** that receives warning requests, runs a LangGraph agent with tool-calling, composes multi-lingual bulletins, and dispatches alerts to residents. It runs alongside the backend API and operates through Celery queues (RabbitMQ in local dev, Redis in production).
+
+## 🌐 Live Deployment
+
+- **AI Agent API (Render):** https://quto-ai-2.onrender.com · [Swagger](https://quto-ai-2.onrender.com/docs) · [Health](https://quto-ai-2.onrender.com/health)
+- Deployed as a **single Render web service** running FastAPI + Celery worker together via `honcho` (`Procfile`). Broker/result = **Render Key Value (Redis)**, data = **Render Postgres**, LLM = **FPT Cloud**.
+- Setup guide: [RENDER.md](RENDER.md) · full guide: [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
 
 ---
 
@@ -129,7 +135,7 @@ flowchart LR
 
 ## 4. API Endpoints
 
-All endpoints at `http://localhost:8100`. Swagger at `/docs`.
+Live at `https://quto-ai-2.onrender.com` · local dev at `http://localhost:8100`. Swagger at `/docs`.
 
 ### System
 
