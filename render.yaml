@@ -1,0 +1,51 @@
+# Render Blueprint — deploy agent_worker (AI) trên gói FREE, KHÔNG cần thẻ.
+#
+# 1 web service (gộp API + Celery worker qua honcho) + Redis (Key Value) + Postgres — tất cả free.
+# Render New → Blueprint → chọn repo này → điền FPT_API_KEY khi hỏi.
+#
+# LƯU Ý: web free có 512MB RAM (hơi sát cho langgraph+celery) và NGỦ sau 15' không request.
+# Xem agent_worker/RENDER.md để giữ warm + phương án dự phòng nếu thiếu RAM.
+
+databases:
+  - name: dienbien-agent-db
+    plan: free
+    databaseName: quto
+    user: quto
+
+services:
+  - type: keyvalue
+    name: dienbien-agent-redis
+    plan: free
+    ipAllowList: []          # chỉ nội bộ Render
+
+  - type: web
+    name: dienbien-agent
+    runtime: docker
+    rootDir: agent_worker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    dockerCommand: honcho -f agent_worker/Procfile start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER
+        value: fpt
+      - key: FPT_API_KEY
+        sync: false          # Render sẽ hỏi khi tạo (dán key từ agent_worker/.env)
+      - key: FPT_BASE_URL
+        value: https://mkp-api.fptcloud.com/v1/
+      - key: FPT_MODEL
+        value: DeepSeek-V4-Flash
+      - key: WEATHER_PROVIDER
+        value: openmeteo
+      - key: HUMAN_APPROVAL_MIN_LEVEL
+        value: "3"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: dienbien-agent-redis
+          property: connectionString
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dienbien-agent-db
+          property: connectionString
