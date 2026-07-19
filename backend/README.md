@@ -1,297 +1,148 @@
-# BẢN TIN AN TOÀN — Backend
+﻿# Backend — Dien Bien Weather AI
 
-Hệ **cảnh báo sớm thiên tai + cứu hộ** cấp xã cho **Điện Biên**.
-Backend viết bằng **FastAPI (Python)**, có sẵn Swagger UI để test.
+FastAPI backend (control plane) for the commune-level disaster early-warning system.
 
-> TL;DR: dự báo thời tiết → chấm rủi ro theo **QĐ18/2021** → AI sinh bản tin đa ngữ
-> (Việt / Thái / Mông) → gửi Zalo/SMS/loa → và nhận **SOS cứu hộ** từ dân, điều đội
-> cứu hộ gần nhất. Mặc định chạy **không cần API key**.
-
----
-
-## 1. Chạy trong 1 phút
-
-```bash
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env          # tuỳ chọn — mặc định đã chạy được
-uvicorn app.main:app --reload # → http://localhost:8000/docs
-```
-
-Mở **http://localhost:8000/docs** là thấy toàn bộ API (Swagger).
-Khi khởi động, backend **tự tạo sẵn 45 xã + 45 cán bộ + 450 công dân + đội cứu hộ**,
-nên đăng nhập được ngay, không cần bước seed thủ công.
+- **Swagger UI:** `http://localhost:8000/docs`
+- **Health:** `GET /health`
+- **Start:** `uvicorn app.main:app --reload`
 
 ---
 
-## 2. Đăng nhập (quan trọng — đọc kỹ)
-
-Chỉ **cán bộ (admin)** mới đăng nhập; người dân thì không.
-
-1. Trên Swagger mở **`1.1 POST /auth/login`** → **Try it out** → nhập:
-   ```json
-   { "email": "canbo.muong_pon@dienbien.gov.vn", "password": "123456" }
-   ```
-   → **Execute** → copy chuỗi `access_token` trong kết quả.
-2. Bấm nút **Authorize** 🔓 (góc trên phải) → dán token vào ô **Value** → **Authorize** → Close.
-3. Xong. Giờ mọi API có ổ khoá 🔒 đều gọi được (thử `1.2 GET /auth/me`).
-
-**Tài khoản** theo mẫu: `canbo.<mã_xã>@dienbien.gov.vn` / `123456`
-(mã xã lấy ở `GET /communes`, ví dụ `canbo.tua_chua@…`, `canbo.dien_bien_phu@…`).
-
-> Không có API tự đăng ký — cán bộ được cấp sẵn (seed / trong CSDL).
-
----
-
-## 3. Kiến trúc tổng quan
-
-```
-        Open-Meteo (dự báo, tự hạ quy mô theo độ cao)
-                        │
-                        ▼
-   RISK ENGINE (agents/risk_engine.py)  ← ngưỡng QĐ18/2021, TẤT ĐỊNH, không dùng AI
-                        │  (phát hiện lũ quét / mưa lớn / rét hại / sạt lở …)
-                        ▼
-   AGENT ĐIỀU PHỐI (agents/orchestrator.py)
-     • LLM sinh bản tin đa ngữ (chỉ diễn đạt/dịch, KHÔNG quyết cấp độ)
-     • TTS đọc loa tiếng dân tộc
-     • human-in-the-loop khi cấp cao (≥ cam)
-     • ghi nhật ký từng bước (provenance)
-                        │
-                        ▼
-   GỬI ĐA KÊNH: Zalo ZNS · SMS · Loa IP    →  DB3 tin nhắn từng người dân
-     lỗi → gửi lại / cán bộ đến tận nhà
-
-   ────────────────────────────────────────────────────────────
-   CỨU HỘ (SOS): dân gửi toạ độ nguy hiểm → dashboard admin → cử đội cứu hộ gần nhất
-```
-
-**Nguyên tắc cốt lõi:** quyết định mức độ nguy hiểm là **luật cứng (QĐ18)**, minh bạch và
-kiểm toán được — **AI chỉ lo phần chữ nghĩa** (viết/dịch bản tin). An toàn + dễ giải trình.
-
-### Công nghệ
-| Thành phần | Dùng gì |
-|---|---|
-| Web framework | FastAPI + Uvicorn |
-| Kiểu dữ liệu / validate | Pydantic v2 |
-| Thời tiết | Open-Meteo (miễn phí, không key) — tự fallback dữ liệu offline |
-| LLM (sinh bản tin) | mock / OpenAI / Gemini / local (đổi ở `.env`) |
-| TTS (loa) | mock / Meta MMS (Thái=`blt`, Mông=`mww`) |
-| Đăng nhập | JWT (HS256), HTTP Bearer |
-| Lưu trữ | In-memory (mặc định) **hoặc** Supabase (Postgres) |
-
----
-
-## 4. Cơ sở dữ liệu (9 bảng)
-
-Mặc định dữ liệu nằm trong bộ nhớ (in-memory). Khi bật Supabase thì lưu vào Postgres
-theo `db/schema.sql`.
-
-| Bảng | Ý nghĩa | Khoá chính |
-|---|---|---|
-| `communes` | 45 xã/phường + toạ độ, độ cao, độ nhạy cảm sạt lở | `code` |
-| `citizens` | **DB1** — công dân (dữ liệu dân cư) | `cccd` |
-| `admins` | **DB2** — cán bộ, mỗi xã 1 người | `id` |
-| `shelters` | Nơi trú ẩn an toàn theo xã | `id` |
-| `alerts` | Cảnh báo (bản tin đa ngữ + nhật ký) | `id` |
-| `notifications` | **DB3** — tin nhắn gửi tới TỪNG người dân + nơi trú ẩn gần nhất | `id` |
-| `rescue_requests` | Tin **SOS** cứu hộ (toạ độ người gặp nạn) | `id` |
-| `rescue_teams` | Đội cứu hộ (mỗi xã 1 đội) | `id` |
-
-Quan hệ chính: `communes` là bảng gốc — `citizens`, `shelters`, `alerts`, `rescue_*`
-đều gắn với `commune_code`. `notifications` tham chiếu mềm tới `alerts` + `citizens` +
-`shelters`.
-
----
-
-## 5. Danh sách API (theo nhóm trên Swagger)
-
-### 1 · Tài khoản (admin)
-| Method | Path | Việc |
-|---|---|---|
-| POST | `/api/v1/auth/login` | Đăng nhập, lấy token |
-| GET | `/api/v1/auth/me` | Thông tin cán bộ đang đăng nhập |
-
-### 2 · Bản đồ & Dự báo
-| Method | Path | Việc |
-|---|---|---|
-| GET | `/api/v1/communes` | 45 xã + toạ độ (vẽ marker) |
-| GET | `/api/v1/communes/{commune_id}/overview` | Tình hình hiện tại + brief AI + việc cần làm + dự báo 7 ngày |
-| GET | `/api/v1/forecast/{code}` | Dự báo 3–7 ngày cho 1 xã |
-| GET | `/api/v1/risk-map` | Cấp độ + màu nguy cơ mọi xã (tô bản đồ) |
-
-### 3 · DB1 · Công dân *(cần đăng nhập)*
-| Method | Path | Việc |
-|---|---|---|
-| GET | `/api/v1/citizens` | Danh sách (lọc `?commune_code=`) |
-| POST | `/api/v1/citizens` | Thêm/cập nhật (khoá = CCCD) |
-| GET | `/api/v1/citizens/{cccd}` | Xem 1 công dân |
-
-### 4 · DB2 · Cán bộ *(cần đăng nhập)*
-| Method | Path | Việc |
-|---|---|---|
-| GET | `/api/v1/admins` | Danh sách cán bộ (lọc `?commune_code=`) |
-
-### 5 · Cảnh báo (AI Agent) *(cần đăng nhập)*
-| Method | Path | Việc |
-|---|---|---|
-| POST | `/api/v1/alerts/scan/{code}` | Quét nguy cơ 1 xã → agent tạo cảnh báo |
-| GET | `/api/v1/alerts` | Danh sách cảnh báo |
-| GET | `/api/v1/alerts/{id}` | Chi tiết + nhật ký |
-| POST | `/api/v1/alerts/{id}/approve` | Duyệt & gửi (hoặc bác bỏ) |
-| POST | `/api/v1/alerts/{id}/retry` | Gửi lại kênh bị lỗi |
-
-### 6 · Demo
-| Method | Path | Việc |
-|---|---|---|
-| POST | `/api/v1/dev/seed` | Tạo 45 xã + cán bộ + công dân (`?per_commune=`) |
-| POST | `/api/v1/dev/scenario/muong-pon-2024` | Tái hiện lũ quét Mường Pồn 25/7 → cấp 3 |
-| POST | `/api/v1/dev/supabase/push-seed` | Đẩy toàn bộ dữ liệu lên Supabase |
-
-### 7 · Nơi trú ẩn
-| Method | Path | Việc |
-|---|---|---|
-| GET | `/api/v1/shelters` | Danh sách (lọc `?commune_code=`) |
-| GET | `/api/v1/shelters/nearest` | Điểm gần nhất theo `lat,lon` |
-| POST | `/api/v1/shelters` | Thêm điểm trú ẩn *(cần đăng nhập)* |
-
-### 8 · DB3 · Tin nhắn cá nhân *(cần đăng nhập)*
-| Method | Path | Việc |
-|---|---|---|
-| GET | `/api/v1/notifications` | Tin đã gửi (`?alert_id=&cccd=&failed_only=`) |
-| PATCH | `/api/v1/notifications/{id}` | Cập nhật trạng thái (vd đã đến tận nhà) |
-
-### 10 · Cứu hộ (SOS)
-| Method | Path | Ai dùng | Việc |
-|---|---|---|---|
-| POST | `/api/v1/rescue/sos` | **Dân (công khai)** | Gửi vị trí nguy hiểm |
-| GET | `/api/v1/rescue/requests` | Admin | Dashboard SOS (sắp theo ưu tiên) |
-| GET | `/api/v1/rescue/map` | Admin | SOS + đội cứu hộ cho bản đồ |
-| GET | `/api/v1/rescue/requests/{id}` | Admin | Chi tiết 1 SOS |
-| POST | `/api/v1/rescue/requests/{id}/assign` | Admin | Cử đội gần nhất (km + ETA) |
-| PATCH | `/api/v1/rescue/requests/{id}` | Admin | Cập nhật trạng thái |
-| GET/POST | `/api/v1/rescue/teams` | Admin | Xem/thêm đội cứu hộ |
-
-### 9 · Hệ thống
-| GET | `/health` | Kiểm tra sống + xem cấu hình |
-
----
-
-## 6. Hai luồng chính (để demo)
-
-### A. Cảnh báo thiên tai
-```
-6.1 seed → 1.1 login → 6.2 scenario Mường Pồn
-→ 5.2 xem cảnh báo (lũ quét CẤP 3, đang "chờ phê duyệt")
-→ 5.4 duyệt & gửi  (Zalo/SMS ok, loa lỗi)
-→ 8.1 notifications?failed_only=true  (ai chưa nhận)
-→ 5.5 gửi lại  /  8.2 cập nhật "đã đến tận nhà"
-```
-
-### B. Cứu hộ SOS (kiểu app bản đồ bão Yagi)
-```
-10.1 /rescue/sos  (dân gửi toạ độ — KHÔNG cần đăng nhập)
-   → BE tự suy ra xã + gắn nơi trú ẩn gần nhất + tính mức ưu tiên
-10.2 /rescue/requests  (admin thấy trên dashboard, sắp theo ưu tiên)
-10.5 /rescue/requests/{id}/assign  (BE cử đội cứu hộ RẢNH gần nhất → km + ETA)
-10.6 PATCH status=resolved  (cứu xong → đội rảnh lại)
-```
-
-Ví dụ body SOS tối thiểu (bỏ hết các ô `"string"` Swagger tự điền):
-```json
-{ "lat": 21.531, "lon": 103.081, "danger_type": "flood_trapped", "num_people": 3,
-  "note": "Kẹt trên mái nhà" }
-```
-
----
-
-## 7. Cấu hình (`.env`)
-
-| Biến | Giá trị | Ý nghĩa |
-|---|---|---|
-| `WEATHER_PROVIDER` | `openmeteo` \| `mock` | Nguồn dự báo (tự fallback khi offline) |
-| `LLM_PROVIDER` | `mock` \| `openai` \| `gemini` \| `local` | Model sinh bản tin |
-| `TTS_PROVIDER` | `mock` \| `mms` | Đọc loa tiếng dân tộc |
-| `DISPATCH_PROVIDER` | `mock` \| `live` | Kênh gửi Zalo/SMS/loa |
-| `HUMAN_APPROVAL_MIN_LEVEL` | `3` | Cấp ≥ số này phải người duyệt mới gửi |
-| `DB_BACKEND` | `memory` \| `supabase` | Lưu in-memory hay Postgres |
-| `SUPABASE_URL`, `SUPABASE_KEY` | | Khi dùng Supabase (key = service_role) |
-| `JWT_SECRET` | chuỗi bí mật | Ký token đăng nhập |
-
-Mặc định tất cả là `mock`/`memory` → chạy ngay, không cần key.
-
----
-
-## 8. Dùng Supabase (lưu Postgres + realtime cho FE)
-
-1. Tạo project Supabase → **SQL Editor** → chạy toàn bộ `db/schema.sql` (tạo 9 bảng).
-2. Điền `.env`: `DB_BACKEND=supabase`, `SUPABASE_URL`, `SUPABASE_KEY` (service_role).
-3. Chạy `6.1 /dev/seed` → dữ liệu tự đẩy lên Supabase (và tự kéo về khi khởi động lại).
-
-**Realtime cho Frontend:** backend đã ghi vào Supabase mỗi khi có thay đổi (chạy nền,
-không làm chậm API). FE chỉ cần **subscribe Supabase Realtime**:
-```js
-supabase.channel('sos')
-  .on('postgres_changes',
-      { event: '*', schema: 'public', table: 'rescue_requests' },
-      payload => updateDashboard(payload.new))
-  .subscribe()
-```
-(nhớ bật bảng trong Supabase → Database → Replication → publication `supabase_realtime`).
-
----
-
-## 9. Deploy lên Render
-
-- **Root Directory**: `backend`
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command** (BẮT BUỘC đúng — nếu sai sẽ báo *"No open ports"*):
-  ```
-  uvicorn app.main:app --host 0.0.0.0 --port $PORT
-  ```
-- **Environment**: đặt `DB_BACKEND`, `SUPABASE_URL`, `SUPABASE_KEY`, `JWT_SECRET`
-  (file `.env` KHÔNG được commit nên phải khai báo ở đây).
-
-Đã có sẵn `Procfile` và `render.yaml` với cấu hình đúng.
-
----
-
-## 10. Cây thư mục
+## 1. Structure
 
 ```
 backend/
 ├── app/
-│   ├── main.py               # điểm vào FastAPI + startup (auto-seed / pull Supabase)
-│   ├── config.py             # đọc .env
-│   ├── security.py           # JWT + HTTP Bearer
-│   ├── schemas/              # kiểu dữ liệu Pydantic (geo, citizen, admin, alert,
-│   │                         #   notification, shelter, rescue, forecast, common)
-│   ├── services/             # kho dữ liệu in-memory + logic
-│   │   ├── geo_data.py        #   45 xã + toạ độ + haversine
-│   │   ├── citizens.py / admins.py / shelters.py / notifications.py
-│   │   ├── alerts.py / rescue.py
-│   │   ├── seed.py            #   sinh công dân + cán bộ mẫu
-│   │   └── supabase_repo.py   #   đẩy/kéo Supabase (chạy nền)
-│   ├── agents/
-│   │   ├── risk_engine.py     #   ngưỡng QĐ18 (tất định)
-│   │   └── orchestrator.py    #   điều phối bản tin + gửi + human-loop
-│   ├── providers/            # weather, llm, tts, dispatch (đều có bản mock)
-│   └── api/routes/           # auth, forecast, citizens, admins, alerts,
-│                             #   notifications, shelters, rescue, dev
-├── db/schema.sql             # 9 bảng Postgres cho Supabase
-├── requirements.txt
-├── Procfile / render.yaml    # cấu hình deploy Render
-└── .env.example
+│   ├── main.py              # FastAPI app, middleware, startup bootstrap
+│   ├── config.py            # Settings from .env (pydantic-settings)
+│   ├── security.py          # JWT token creation & verification
+│   ├── api/routes/          # 12 API route groups
+│   │   ├── auth.py          #   1. Login (token-based)
+│   │   ├── forecast.py      #   2. Map & forecast (commune list, 7-day, risk overlay)
+│   │   ├── citizens.py      #   3. Citizen database (DB1)
+│   │   ├── admins.py        #   4. Official database (DB2)
+│   │   ├── alerts.py        #   5. AI-powered warnings (trigger, approve, reject)
+│   │   ├── dev.py           #   6. Demo & seed endpoints
+│   │   ├── shelters.py      #   7. Safe shelters
+│   │   ├── notifications.py #   8. Delivery notifications (DB3)
+│   │   ├── rescue.py        #   10. SOS rescue coordination
+│   │   ├── loudspeakers.py  #   11. IP loudspeaker management
+│   │   ├── interactions.py  #   12. Delivery log & audit trail
+│   │   ├── admin_console.py #   Admin console dashboard
+│   │   └── admin_sos.py     #   Admin SOS management
+│   ├── services/            # Business logic and data storage
+│   │   ├── citizens.py      #   CRUD for citizens (in-memory + Supabase mirror)
+│   │   ├── admins.py        #   CRUD for officials
+│   │   ├── alerts.py        #   Alert lifecycle (trigger, approve, reject)
+│   │   ├── seed.py          #   Demo data generator (45 communes, 450 citizens)
+│   │   ├── geo_data.py      #   45 communes of Dien Bien with coordinates
+│   │   ├── shelters.py      #   Shelter generator (2-3 per commune)
+│   │   ├── notifications.py #   Notification storage & queries
+│   │   ├── rescue.py        #   SOS request handling
+│   │   ├── loudspeakers.py  #   Loudspeaker registry & broadcast
+│   │   ├── interactions.py  #   Delivery interaction log
+│   │   ├── commune_boundary.py # Commune boundary data
+│   │   ├── commune_overview.py # Commune overview aggregation
+│   │   ├── admin_scope.py   #   Admin permissions per commune
+│   │   └── supabase_repo.py #   Supabase push/fetch (optional)
+│   ├── agents/              # Inline AI fallback (deprecated, kept for AGENT_MODE=local)
+│   │   ├── orchestrator.py  #   Agent orchestrator
+│   │   └── risk_engine.py   #   Local risk evaluation
+│   ├── providers/           # External service providers (mockable)
+│   │   ├── weather.py       #   Open-Meteo weather client
+│   │   ├── llm.py           #   LLM client (mock/openai/gemini)
+│   │   ├── tts.py           #   Text-to-speech (mock/MMS)
+│   │   ├── dispatch.py      #   Multi-channel dispatcher (mock)
+│   │   └── agent_client.py  #   HTTP client to agent_worker (AGENT_MODE=remote)
+│   └── schemas/             # Pydantic models for all API groups
+├── pipeline/                # Live/scenario pipeline (see Risk Engine docs)
+├── nowcast/                 # LSTM nowcast model artifacts & inference
+├── fetchers/                # Open-Meteo weather data fetcher
+├── downscale/               # Quantile-mapping bias correction
+├── db/
+│   └── schema.sql           # Supabase schema (11 tables)
+├── scripts/                 # Build commune masks, fit quantile maps
+├── tests/                   # Backend unit tests
+│   ├── test_admin_scope.py
+│   ├── test_commune_boundary.py
+│   ├── test_commune_overview.py
+│   ├── test_cors.py
+│   └── test_sos_rate_limit.py
+├── Dockerfile               # Render/Docker deployment
+├── render.yaml              # Render blueprint
+├── Procfile                 # Render start command
+├── .env.example             # Environment variable template
+└── requirements.txt         # Python dependencies
 ```
 
----
+## 2. API Groups (12 total, Swagger `/docs`)
 
-## 11. Câu hỏi hay gặp
+| Tag | Group | Key Endpoints |
+|-----|-------|---------------|
+| 1 | Auth | `POST /auth/login` → JWT token |
+| 2 | Map & Forecast | `GET /communes`, `GET /forecast/{code}`, `GET /risk-map` |
+| 3 | Citizens (DB1) | `GET /citizens`, `GET /citizens/{cccd}`, search |
+| 4 | Officials (DB2) | `GET /admins`, `GET /admins/{code}` |
+| 5 | AI Alerts | `POST /alerts/trigger`, `POST /alerts/{id}/approve`, `/reject`, retry |
+| 6 | Demo | `POST /dev/seed`, `POST /dev/scenario/muong-pon-2024`, Supabase push |
+| 7 | Shelters | `GET /shelters`, `GET /shelters/nearest` |
+| 8 | Notifications (DB3) | `GET /notifications`, `GET /notifications/failed-only`, `PATCH /notifications/{id}` |
+| 10 | SOS Rescue | `POST /rescue/sos`, `GET /rescue/requests`, assign |
+| 11 | Loudspeakers | `GET /loudspeakers`, `POST /loudspeakers/{id}/broadcast` |
+| 12 | Delivery Log | `GET /interactions`, filter by commune/channel/status |
+| 9 | System | `GET /health`, `GET /config` |
 
-- **Login báo 401?** → sai mã xã trong email, hoặc mật khẩu khác `123456`.
-- **SOS báo 500?** → đã fix; nhớ dùng bản mới. Body chỉ cần `lat/lon/danger_type`.
-- **Data không lên Supabase?** → kiểm tra `DB_BACKEND=supabase` và đã chạy `db/schema.sql`.
-- **Render "No open ports"?** → sửa Start Command thành `--host 0.0.0.0 --port $PORT`.
-- **Muốn dữ liệu bền sau restart?** → bật Supabase; nếu chạy `memory` thì mỗi lần khởi
-  động lại sẽ tự seed mới.
+## 3. Database
+
+The backend supports two storage modes, controlled by `DB_BACKEND`:
+
+- **`memory`** (default): In-memory storage, auto-seeded on startup. No external DB needed.
+- **`supabase`**: Supabase Postgres backend. Schema at `backend/db/schema.sql` (11 tables: citizens, admins, alerts, notifications, shelters, rescue_requests, loudspeakers, interactions, admin_sessions, etc.).
+
+### Auto-seed on startup
+
+The `main.py:_bootstrap()` function ensures the system always starts with data:
+
+```python
+# From backend/app/main.py (lines 65-87):
+# 1. If Supabase is enabled, pull citizens + admins from remote
+# 2. If no admins exist, auto-seed 45 officials + 450 citizens
+# Login: canbo.<commune_code>@dienbien.gov.vn / 123456
+```
+
+## 4. Health Check
+
+```bash
+curl http://localhost:8000/health
+# → {"status":"ok","version":"0.4.0","db_backend":"memory",
+#    "weather_provider":"mock","llm_provider":"mock","human_approval_min_level":3}
+```
+
+## 5. Quick Start
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env             # Defaults work without changes
+uvicorn app.main:app --reload    # → http://localhost:8000/docs
+```
+
+Login with `canbo.muong_pon@dienbien.gov.vn` / `123456` then test the Muong Pon scenario at `POST /dev/scenario/muong-pon-2024`.
+
+## 6. Configuration
+
+All settings via `.env` (see `.env.example`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_BACKEND` | `memory` | Storage backend (`memory` / `supabase`) |
+| `LLM_PROVIDER` | `mock` | LLM provider (`mock` / `openai` / `gemini`) |
+| `WEATHER_PROVIDER` | `mock` | Weather API (`mock` / `open-meteo`) |
+| `DISPATCH_PROVIDER` | `mock` | Dispatch engine (`mock` / `agent_worker`) |
+| `AGENT_MODE` | `local` | AI agent mode (`local` / `remote`) |
+| `AGENT_BASE_URL` | — | agent_worker URL for remote mode |
+| `HUMAN_APPROVAL_MIN_LEVEL` | `3` | Risk level requiring human approval |
+| `JWT_SECRET` | — | Token signing key |
+| `SUPABASE_URL/KEY` | — | Supabase credentials |

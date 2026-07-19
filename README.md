@@ -1,15 +1,16 @@
-<div align="center">
+﻿<div align="center">
 
-# 🛡️ BẢN TIN AN TOÀN
+# 🌤️ Dien Bien Weather AI
 
-### Hệ thống cảnh báo sớm thiên tai & cứu hộ cấp xã — Điện Biên
-
-*AI-native, multi-channel, multilingual disaster early-warning & rescue-coordination platform.*
+### *Know the sky, know the risk — A hundred calamities, a hundred victories*
 
 [![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Web-Next.js%2015-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-[![LangGraph](https://img.shields.io/badge/AI-LangGraph%20%2B%20Celery-1C3C3C)](https://langchain-ai.github.io/langgraph/)
+[![LangGraph](https://img.shields.io/badge/AI-LangGraph-1C3C3C)](https://langchain-ai.github.io/langgraph/)
+[![Celery](https://img.shields.io/badge/Queue-Celery-37814A)](https://docs.celeryq.dev/)
 [![Supabase](https://img.shields.io/badge/DB-Supabase%20Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![TensorFlow](https://img.shields.io/badge/ML-TensorFlow-FF6F00?logo=tensorflow)](https://www.tensorflow.org/)
+[![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -17,243 +18,204 @@
 
 ---
 
-## Tổng quan
+## 1. The Challenge
 
-Điện Biên là vùng núi cao, thời tiết khắc nghiệt và thay đổi nhanh: **lũ quét, sạt lở, mưa
-lớn, rét hại, sương mù**. Thông tin dự báo hiện chỉ ở cấp tỉnh — người dân **thôn/bản nhận
-muộn, không đủ chi tiết theo từng vùng, và khó hiểu** với người ít đọc chữ.
+**Rapid-onset disasters across complex terrain**
 
-**BẢN TIN AN TOÀN** giải quyết bài toán *đưa thông tin đúng người — đúng lúc — đúng ngôn ngữ*:
+Điện Biên is a mountainous province with dispersed communities and many areas frequently exposed to flash floods, landslides, dense fog, and severe cold. In just two periods of heavy rainfall between **25 July and 4 August 2025**, natural disasters in Điện Biên resulted in **10 deaths, 14 injuries, 1,401 affected houses**, and **estimated economic losses of ~VND 1.356 trillion**.
 
-- **Dự báo chi tiết cấp xã** — hạ quy mô dữ liệu thời tiết về từng xã (Gồm điểm và độ cao).
-- **Cảnh báo tự động kèm hành động cụ thể** — AI soạn bản tin đa ngữ khi vượt ngưỡng QĐ18/2021.
-- **Đa kênh & đa ngữ** — Zalo · SMS · loa truyền thanh IP; Tiếng Việt · Thái · Mông.
-- **Giao diện trực quan** — biểu tượng, màu sắc, thang cảnh báo thay cho thuật ngữ khí tượng.
-- **Cứu hộ (SOS)** — người dân ghim vị trí nguy hiểm → điều phối đội cứu hộ gần nhất.
+The challenge is not only forecasting the weather, but delivering warnings to the right people before they run out of time to act.
 
-> **Nguyên tắc cốt lõi:** mức độ nguy hiểm do **luật cứng QĐ18/2021** quyết định (minh bạch,
-> kiểm toán được) — **AI chỉ soạn/dịch bản tin**, không tự quyết cấp độ. An toàn & dễ giải trình.
+## 2. The Project
 
----
+**Dien Bien Weather AI** is an AI-powered early-warning system that automatically delivers commune-level weather risks to residents and local authorities through Zalo, SMS, and public loudspeakers. When risks emerge during the night or early morning—when fewer officials are on duty—the system can still automatically identify communes facing danger, generate short warnings with clear recommended actions, and send them simultaneously across all channels.
 
-## ✨ Tính năng chính
-
-| | Tính năng |
-|---|---|
-| 🌦️ | Dự báo **7 ngày cho 45 xã/phường** Điện Biên (Open-Meteo, hiệu chỉnh độ cao + bias-correction) |
-| ⚖️ | **Risk engine tất định** theo QĐ18/2021/QĐ-TTg — thang rủi ro 5 cấp (xanh→tím) |
-| 🤖 | **AI agent (LangGraph)** soạn bản tin đa ngữ Việt/Thái/Mông + gợi ý hành động |
-| 🧑‍⚖️ | **Human-in-the-loop** — cảnh báo cấp cao (≥ cam) phải cán bộ duyệt mới gửi |
-| 📡 | Gửi **đa kênh**: Zalo ZNS · SMS brandname · loa truyền thanh IP (ngắt lịch khẩn) |
-| 🔊 | **TTS tiếng dân tộc** (Meta MMS: Thái `blt`, Mông `mww`) đọc bản tin ra loa |
-| 🆘 | **Cứu hộ SOS** — dân gửi toạ độ → dashboard điều phối → cử đội gần nhất (km + ETA) |
-| 🗺️ | **Bản đồ nguy cơ** realtime (Leaflet) + nơi trú ẩn an toàn gần nhất |
-| 📜 | **Nhật ký gửi tin** + audit từng bước (data provenance) |
-| 🔐 | Đăng nhập JWT phân quyền **theo từng xã**; đa nguồn dữ liệu có trích dẫn |
-
----
-
-## 🏗️ Kiến trúc
+## 3. Repository Structure
 
 ```
-                          ┌────────────────────────────┐
-                          │      FRONTEND (Vercel)     │  Next.js 15 · React 19 · Leaflet
-                          │  Dashboard + Bản đồ + SOS  │
-                          └───────────┬────────────────┘
-                                      │ HTTPS / Supabase Realtime
-             ┌────────────────────────┼─────────────────────────┐
-             ▼                        ▼                          ▼
-   ┌──────────────────┐   ┌───────────────────────┐    ┌────────────────────┐
-   │ BACKEND (Render) │   │  AI AGENT (VPS/Docker)│    │  DATA PIPELINE     │
-   │ FastAPI · JWT    │   │  agent_worker :8100   │    │  (cron / worker)   │
-   │ 12 nhóm API      │◄─►│  LangGraph + Celery   │    │  Fetch 7 ngày →    │
-   │ control-plane    │   │  agent · dispatch     │    │  point extract →   │
-   └────────┬─────────┘   └──────────┬────────────┘    │  bias-correction   │
-            │                        │                 └─────────┬──────────┘
-            │        ┌───────────────┴────────────┐             │
-            ▼        ▼                             ▼             ▼
-   ┌─────────────────────┐        ┌───────────────────────────────────┐
-   │ Supabase (Postgres) │        │ RabbitMQ (broker) · Redis (result) │
-   │ 11 bảng dữ liệu     │        └───────────────────────────────────┘
-   └─────────────────────┘
-            ▲
-   ┌────────┴────────────────────────────────────────────────────────────┐
-   │ Nguồn: Open-Meteo · GeoNames · Copernicus GLO-90 · QĐ18/2021/QĐ-TTg │
-   └─────────────────────────────────────────────────────────────────────┘
+.
+├── backend/               # FastAPI backend (control plane, 12 API groups)
+│   ├── app/               #   API routes, services, schemas, security
+│   ├── risk_engine/       #   Deterministic risk engine (Decision 18/2021)
+│   ├── pipeline/          #   Live/scenario/replay pipeline runner
+│   ├── nowcast/           #   LSTM nowcast model (TensorFlow)
+│   ├── fetchers/          #   Open-Meteo weather data fetcher
+│   ├── downscale/         #   Quantile-mapping bias correction
+│   ├── db/                #   Schema.sql for Supabase
+│   └── scripts/           #   Build commune masks, fit quantile maps
+├── agent_worker/          # AI Agent service (LangGraph + Celery)
+│   ├── api.py             #   FastAPI control plane (port 8100)
+│   ├── tasks.py           #   Celery tasks (run_job, resume_job, dispatch)
+│   ├── graph/             #   LangGraph agent with tool-calling
+│   ├── tools/             #   Agent tools (weather, geo, risk, telegram, speaker)
+│   ├── ai/                #   LLM client, risk engine, TTS, chat model
+│   ├── infra/             #   DB, messaging, config
+│   └── shared/            #   Shared schemas (alert, forecast, geo)
+├── data-pipeline/         # Standalone weather data pipeline
+│   └── pipeline/          #   Fetch, bias-correction, geocode, run
+├── frontend/              # Next.js 15 dashboard + map (Leaflet)
+│   ├── app/               #   Next.js App Router pages
+│   ├── components/        #   React components
+│   ├── services/          #   API clients, data gateways
+│   └── hooks/             #   React hooks
+├── config/                # Shared configuration
+│   └── thresholds.yaml    # Risk engine rule tables (QĐ18/2021)
+├── tests/                 # Root-level E2E tests
+│   ├── test_e2e.py        #   End-to-end pipeline tests
+│   ├── test_model.py      #   Nowcast model tests
+│   ├── test_run.py        #   Pipeline run tests
+│   └── ...
+├── pyproject.toml         # Risk engine project config
+├── scaler.json            # DUMMY scaler (placeholder for real training data)
+└── requirements-tf.txt    # TensorFlow dependencies
 ```
 
-**Luồng chính:** `Dự báo → Risk engine (QĐ18) → AI soạn bản tin đa ngữ → Human duyệt (nếu cấp cao)
-→ Gửi đa kênh → Nhật ký + provenance`. Song song: `Dân gửi SOS → điều phối cứu hộ`.
+## 4. Architecture & Data Flow
 
----
+```mermaid
+flowchart LR
+  subgraph "Data Sources"
+    OM[Open-Meteo API]
+    DEM[Copernicus DEM]
+    GEO[GeoNames]
+  end
 
-## 📁 Cấu trúc kho mã
+  subgraph "Data Pipeline"
+    FETCH[Fetch 7-day forecast]
+    BC[Bias correction]
+    NOW[Nowcast LSTM]
+  end
 
+  subgraph "Risk Engine"
+    RE[risk_engine/evaluate]
+    RULES[thresholds.yaml]
+    TEMP[Temporal logic]
+  end
+
+  subgraph "AI Agent Worker"
+    API[agent-api :8100]
+    CEL[Celery workers]
+    LG[LangGraph agent]
+    LLM[LLM compose]
+    DISP[dispatch to channels]
+  end
+
+  subgraph "Delivery"
+    Z[Zalo / Telegram]
+    SMS[SMS]
+    LOA[Loudspeaker]
+  end
+
+  subgraph "Frontend"
+    FE[Next.js dashboard]
+    MAP[Leaflet map]
+    SOS[SOS panel]
+  end
+
+  OM --> FETCH --> BC --> RE
+  NOW --> RE
+  RE --> CEL
+  GEO --> API
+  OM --> LG
+  RE --> RULES
+  RE --> TEMP
+  API --> CEL --> LG --> LLM
+  LG --> DISP --> Z
+  LG --> DISP --> SMS
+  LG --> DISP --> LOA
+  FE --> API
+  FE --> MAP
+  FE --> SOS
 ```
-quto-ai/
-├── frontend/        # Next.js 15 + React 19 + Leaflet — dashboard, bản đồ, SOS (Vercel)
-├── backend/         # FastAPI control-plane — 12 nhóm API, JWT, Supabase (Render)
-├── agent_worker/    # AI: LangGraph + Celery + FastAPI(:8100) + RabbitMQ/Redis/Postgres (Docker)
-├── data-pipeline/   # Fetch Open-Meteo 7 ngày → point extract → bias correction
-├── config/          # cấu hình dùng chung
-├── tests/           # kiểm thử tích hợp E2E
-└── README.md
-```
 
-| Thành phần | Công nghệ | Vai trò | Triển khai |
-|---|---|---|---|
-| **frontend** | Next.js 15, React 19, Leaflet, TypeScript, Tailwind | Dashboard cán bộ + bản đồ dân | Vercel |
-| **backend** | FastAPI, Pydantic v2, JWT, Supabase | Control-plane: dữ liệu, cảnh báo, cứu hộ, loa, nhật ký | Render |
-| **agent_worker** | LangGraph, Celery, FastAPI, RabbitMQ, Redis | AI soạn bản tin + gửi đa kênh (bất đồng bộ) | VPS / Railway (Docker) |
-| **data-pipeline** | httpx, Open-Meteo | Hạ quy mô dự báo 7 ngày + hiệu chỉnh sai số | Cron / worker |
+**Step-by-step flow:**
+1. **Data ingestion:** `data-pipeline/pipeline/fetch.py` calls Open-Meteo API for 7-day forecasts. `backend/fetchers/openmeteo.py` fetches grid data for nowcasting (`backend/nowcast/`).
+2. **Feature assembly:** `backend/pipeline/assemble.py` builds `RiskEngineInput` per commune combining observations, forecast, antecedent rain, and nowcast data.
+3. **Risk evaluation:** `backend/risk_engine/engine.py:evaluate()` validates input, derives features, applies rule tables from `config/thresholds.yaml`, runs temporal logic, and produces `HazardAssessment` outputs with risk levels 0–5.
+4. **Worker dispatch:** `agent_worker/api.py` receives warning requests, enqueues Celery tasks. `agent_worker/tasks.py` runs the LangGraph agent (`agent_worker/graph/`) which calls tools (risk engine, weather, geo, telegram), composes multi-lingual bulletins via LLM, and dispatches messages.
+5. **Channel delivery:** Messages are sent via Telegram bot (`agent_worker/tools/telegram_tool.py`) or loudspeaker (`agent_worker/tools/speaker_tool.py` — currently mock). Retry logic runs inside `agent_worker/tasks.py:_dispatch()` with configurable max retry count.
 
----
+## 5. Key Components
 
-## 🚀 Bắt đầu nhanh
+### Backend API (`backend/`) — [README](backend/README.md)
+- FastAPI application with 12 API groups (auth, forecast, citizens, admins, alerts, shelters, notifications, rescue, loudspeakers, SOS, delivery log, system).
+- Automatic seed on startup: 45 communes, 45 officials, 450 citizens, rescue teams.
+- Health check at `GET /health`.
+- Start: `uvicorn app.main:app --reload` (port 8000).
 
-> Yêu cầu: **Python ≥ 3.12**, **Node ≥ 18**, (tuỳ chọn) **Docker**.
+### Risk Engine (`backend/risk_engine/`) — [README](backend/risk_engine/README.md)
+- Deterministic engine based on **Decision 18/2021/QĐ-TTg**.
+- Input validation via JSON Schema (`backend/risk_engine/schemas.py`).
+- Rule tables in `config/thresholds.yaml` (5 hazard types, 30+ rules).
+- Multi-hazard compounding (`lu_quet_sat_lo` + `mua_lon` both ≥2 → +1 level).
+- Temporal logic: cooldown, clearing, idempotency cache.
+- Output: `HazardAssessment` with risk_level, risk_color, msg_type, CAP-XML.
 
-<details open>
-<summary><b>1) Backend (API control-plane)</b></summary>
+### AI Agent Worker (`agent_worker/`) — [README](agent_worker/README.md)
+- FastAPI control plane (port 8100) with Celery workers for background AI tasks.
+- LangGraph agent with tool-calling (weather, risk, geo, shelter, telegram).
+- Human-in-the-loop for high-level warnings (≥3).
+- Telegram bot integration for citizen alerts.
+- Retry logic: up to 3 attempts per dispatch with 5s countdown.
+
+### Data Pipeline (`data-pipeline/`)
+- Standalone pipeline to fetch 7-day weather forecasts for 45 communes.
+- Bias correction via quantile mapping (`data-pipeline/pipeline/bias_correction.py`).
+- Output: `output/forecast_<commune>.json` + `output/latest.json`.
+
+### Frontend (`frontend/`)
+- Next.js 15 App Router with Leaflet map.
+- Resident dashboard: commune warning map, 7-day forecast, SOS button.
+- Admin dashboard: monitor warnings, delivery status, rescue assignment.
+
+## 6. Quick Start
+
+### 6.1 Risk Engine standalone
 
 ```bash
 cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload       
+pip install -e ..
+pytest tests/ -v                    # Run engine tests (determinism, rules, fuzz)
+python -m pipeline.run --source scenario --scenario muong_pon  # Run Muong Pon scenario
 ```
-Khởi động tự seed **45 xã + 45 cán bộ + 450 công dân + đội cứu hộ**.
-Đăng nhập: `canbo.<mã_xã>@dienbien.gov.vn` / `123456` (vd `canbo.muong_pon@…`).
-Chi tiết: [backend/README.md](backend/README.md).
-</details>
 
-<details>
-<summary><b>2) AI Agent (agent_worker)</b></summary>
+### 6.2 Backend API
+
+```bash
+cd backend
+python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload       # → http://localhost:8000/docs
+```
+
+### 6.3 AI Agent Worker
 
 ```bash
 cd agent_worker
-docker compose up --build         
+docker compose up --build            # Starts agent-api:8100 + workers + RabbitMQ + Redis + Postgres
+# Swagger: http://localhost:8100/docs
 ```
-AI thật: đặt `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` trong `.env` (mặc định `mock`).
-API: [agent_worker/ENDPOINTS.md](agent_worker/ENDPOINTS.md).
-</details>
 
-<details>
-<summary><b>3) Data pipeline (dự báo 7 ngày)</b></summary>
-
-```bash
-cd data-pipeline
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python -m pipeline.run               # 1 lần  ·  --loop cho hourly tick
-# → output/forecast_<xã>.json + output/latest.json
-```
-Nguồn & độ tin cậy: [data-pipeline/SOURCES.md](data-pipeline/SOURCES.md).
-</details>
-
-<details>
-<summary><b>4) Frontend (dashboard + bản đồ)</b></summary>
+### 6.4 Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev                          # → http://localhost:3000
 ```
-Đặt `NEXT_PUBLIC_API_URL` (backend) + Supabase keys trong `.env.local`.
-</details>
 
----
+## 7. Deployment
 
-## ⚙️ Cấu hình (biến môi trường chính)
+| Component | Method | Reference |
+|-----------|--------|-----------|
+| Frontend | Vercel | `frontend/vercel.json` |
+| Backend | Render / Docker | `backend/Dockerfile`, `backend/render.yaml` |
+| AI Agent | Docker Compose | `agent_worker/docker-compose.prod.yml` |
+| Database | Supabase | `backend/db/schema.sql` |
 
-| Biến | Thành phần | Ý nghĩa |
-|---|---|---|
-| `DB_BACKEND` | backend | `memory` (chạy ngay) \| `supabase` (Postgres) |
-| `SUPABASE_URL` / `SUPABASE_KEY` | backend, agent | Kết nối Supabase (service_role) |
-| `LLM_PROVIDER` | backend, agent | `mock` \| `openai` \| `gemini` |
-| `GEMINI_API_KEY` / `OPENAI_API_KEY` | agent | Khoá LLM để AI chạy thật |
-| `RABBITMQ_URL` / `REDIS_URL` | backend↔agent | Hàng đợi + kết quả (Celery) |
-| `HUMAN_APPROVAL_MIN_LEVEL` | backend, agent | Cấp ≥ giá trị này phải cán bộ duyệt (mặc định 3) |
-| `JWT_SECRET` | backend | Ký token đăng nhập |
-| `CORS_ORIGINS` | backend | Domain FE được phép gọi |
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions.
 
----
-
-## ☁️ Triển khai (production)
-
-| Lớp | Khuyến nghị | Ghi chú |
-|---|---|---|
-| **Frontend** | Vercel | `next build`; đặt `NEXT_PUBLIC_API_URL` |
-| **Backend** | Render (Web Service) | Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| **AI Agent** | **VPS + `docker compose up -d`** | Đúng như thiết kế; Caddy HTTPS cho `:8100`; RabbitMQ/Redis chạy nội bộ |
-| **Database** | Supabase | Chạy `backend/db/schema.sql` (11 bảng) |
-| **Broker** *(nếu backend↔agent qua Celery)* | CloudAMQP + Upstash Redis | Managed free; **không dùng ngrok** cho broker |
-
-> Lựa chọn managed cho AI: **Railway / Fly.io** chạy 3 process Docker + CloudAMQP + Upstash + Supabase.
-
----
-
-## 🔌 API (tóm tắt)
-
-**Backend** (`:8000/docs`) — 12 nhóm: Tài khoản · Bản đồ&Dự báo · Công dân (DB1) · Cán bộ (DB2)
-· Cảnh báo (AI) · Demo · Nơi trú ẩn · Tin nhắn cá nhân (DB3) · Cứu hộ SOS · **Loa truyền thanh**
-· **Nhật ký gửi tin** · Hệ thống. Xem [backend/README.md](backend/README.md).
-
-**AI Agent** (`:8100/docs`) — `POST /warnings` (tạo cảnh báo, AI chạy ngay) · `/approve` · `/reject`
-· `/seed` · tra cứu dữ liệu. Xem [agent_worker/ENDPOINTS.md](agent_worker/ENDPOINTS.md).
-
----
-
-## 📊 Nguồn dữ liệu & tính minh bạch
-
-Hệ thống ghi rõ **cái gì là thật / cái gì là ước lượng** trong mọi phản hồi:
-
-| Dữ liệu | Nguồn | Trạng thái |
-|---|---|---|
-| Dự báo thời tiết (45 xã) | **Open-Meteo** (ECMWF/ICON/GFS) — CC BY 4.0 | ✅ Thật |
-| Hạ quy mô theo độ cao | **Copernicus GLO-90 DEM** | ✅ Thật |
-| Toạ độ xã | **GeoNames** (qua Open-Meteo Geocoding) — CC BY 4.0 | 🟡 Gắn nhãn độ tin cậy từng xã |
-| Ngưỡng rủi ro | **Quyết định 18/2021/QĐ-TTg** | ✅ Pháp lý |
-| Bias correction | Quantile mapping / hiệu chỉnh theo độ cao | 🟡 Chờ dữ liệu **trạm KTTV Điện Biên** |
-| Dân cư / cán bộ / trú ẩn | Sinh mẫu (seed) | ⚠️ Mock (thay bằng CSDL thật) |
-
-Chi tiết: [data-pipeline/SOURCES.md](data-pipeline/SOURCES.md).
-
----
-
-## 🗺️ Lộ trình
-
-- [ ] Hiệu chỉnh bias bằng **dữ liệu trạm KTTV Điện Biên** (thay số ước lượng).
-- [ ] **Ranh giới hành chính chính thức 2025** cho 45 xã (thay toạ độ xấp xỉ).
-- [ ] Nowcasting 0–6h (mô hình XGBoost/LSTM) + **IMERG** (mưa vệ tinh).
-- [ ] Cắm **Zalo OA/ZNS + SMS brandname + loa IP** thật (đang mock).
-- [ ] Fine-tune **TTS tiếng dân tộc** + audio cộng đồng thu sẵn.
-- [ ] Xuất **CAP-XML** (chuẩn cảnh báo quốc tế) để liên thông.
-
----
-
-## 🧩 Tech stack
-
-**Backend:** FastAPI · Pydantic v2 · PyJWT · httpx · Supabase
-**AI:** LangGraph · Celery · RabbitMQ · Redis · Meta MMS TTS
-**Frontend:** Next.js 15 · React 19 · TypeScript · Leaflet · Tailwind
-**Data/ML:** Open-Meteo · Copernicus GLO-90 · GeoNames · TensorFlow (nowcasting)
-**Hạ tầng:** Docker · Render · Vercel · Supabase
-
----
-
-## ⚖️ Tuân thủ
-
-- **Luật An ninh mạng 2018 + NĐ53/2022** — dữ liệu host tại Việt Nam.
-- **NĐ13/2023/NĐ-CP** — bảo vệ dữ liệu cá nhân (SĐT/địa chỉ): cần đồng ý (consent) cho
-  Zalo/SMS; Điều 13 cho phép xử lý khẩn cấp để bảo vệ tính mạng.
-
----
-
-## 📄 Giấy phép
+## 9. License
 
 [MIT License](LICENSE) © 2026 Quoc-Viet-Anh Tran.
-
-> **Miễn trừ:** Đây là hệ thống hỗ trợ ra quyết định. Quyết định cảnh báo/sơ tán cuối cùng
-> thuộc về cơ quan phòng chống thiên tai có thẩm quyền. Dữ liệu dân cư/cán bộ trong demo là
-> dữ liệu mẫu, không phải thông tin cá nhân thật.
