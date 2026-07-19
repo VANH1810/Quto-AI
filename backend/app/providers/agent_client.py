@@ -25,7 +25,7 @@ from app.schemas.alert import Alert, AlertStatus, BulletinText, HazardEvent
 log = logging.getLogger("app.agent_client")
 
 # Trạng thái CUỐI của job quét (agent đã xong phần AI) và của bước duyệt (resume).
-_TERMINAL_SCAN = {"pending_approval", "no_risk", "dispatching", "sent", "done", "failed"}
+_TERMINAL_SCAN = {"pending_approval", "no_risk", "dispatching", "sent", "done", "rejected", "failed"}
 _TERMINAL_RESUME = {"dispatching", "rejected", "failed"}
 
 # agent status (chuỗi) → AlertStatus của backend.
@@ -108,10 +108,10 @@ def _to_alert(res: dict) -> Alert | None:
 
 # --------------------------------------------------------------------- public
 
-async def create_alert(commune_code: str, langs: list[str] | None = None) -> Alert | None:
-    """POST /warnings (bất đồng bộ) → POLL GET /warnings/{id} đến khi xong → map Alert.
+async def submit_alert(commune_code: str, langs: list[str] | None = None) -> dict:
+    """POST /warnings — đẩy job cho agent, TRẢ NGAY {warning_id, status} (KHÔNG poll).
 
-    Trả None khi agent báo `no_risk`. Raise khi job lỗi/quá thời gian.
+    Backend dùng để bất đồng bộ: trả warning_id cho FE poll qua scan_status().
     """
     res = await _post("/warnings", {
         "commune_code": commune_code,
@@ -121,32 +121,68 @@ async def create_alert(commune_code: str, langs: list[str] | None = None) -> Ale
     wid = res.get("warning_id")
     if not wid:
         raise RuntimeError(f"agent /warnings không trả warning_id: {res}")
+    return {"warning_id": wid, "status": res.get("status", "queued")}
 
-    final = await _poll(wid, _TERMINAL_SCAN)
+
+async def scan_status(warning_id: str) -> dict:
+    """GET /warnings/{id} (1 lần) → envelope ĐẦY ĐỦ: state/status/progress/metadata/alert.
+
+    Forward NGUYÊN VẸN từ agent:
+    - `state`   : PENDING|PROGRESS|SUCCESS|FAILURE (Celery).
+    - `status`  : queued|running|pending_approval|dispatching|no_risk|rejected|failed.
+    - `progress`: {node, step, total} khi đang chạy (đọc được cả lúc PROGRESS).
+    - `metadata`: kết quả AI (risk_level, needs_human, n_recipients, actions, bulletins,
+                  top_event, alert_id) — tích luỹ ngay cả khi CHƯA xong.
+    - `alert`   : Alert đã map (typed) khi có nguy cơ + đã xong; None nếu no_risk/lỗi.
+    """
+    snap = await _get(f"/warnings/{warning_id}")
+    status = snap.get("status")
+    done = status in _TERMINAL_SCAN
+    result = snap.get("result") or {}
+    resume_info = (snap.get("resume") or {}).get("info") or {}    # kết quả bước duyệt (dispatch)
+    alert = None
+    if done and status not in ("no_risk", "failed", "rejected") and result.get("top_event"):
+        alert = _to_alert({**result, "warning_id": warning_id, "status": status})
+    return {
+        "state": snap.get("state"),
+        "status": status,
+        "done": done,
+        "progress": snap.get("progress"),
+        "risk_level": result.get("risk_level"),
+        "commune_code": result.get("commune_code"),
+        "metadata": result or None,
+        "alert": alert,
+        "dispatched": resume_info.get("dispatched"),     # số tin đã gửi (sau approve)
+        "approved_by": resume_info.get("approved_by"),
+    }
+
+
+async def create_alert(commune_code: str, langs: list[str] | None = None) -> Alert | None:
+    """(Giữ tương thích) POST /warnings + POLL đến khi xong → Alert | None (no_risk)."""
+    ticket = await submit_alert(commune_code, langs)
+    final = await _poll(ticket["warning_id"], _TERMINAL_SCAN)
     status = final.get("status")
     if status == "no_risk":
         return None
     if status in (None, "queued", "running"):
-        raise RuntimeError(f"agent job {wid} chưa xong sau timeout (status={status}).")
+        raise RuntimeError(f"agent job {ticket['warning_id']} chưa xong sau timeout.")
     if status == "failed":
-        raise RuntimeError(f"agent job {wid} thất bại.")
-
-    result = final.get("result") or {}
-    return _to_alert({**result, "warning_id": wid, "status": status})
+        raise RuntimeError(f"agent job {ticket['warning_id']} thất bại.")
+    return _to_alert({**(final.get("result") or {}), "warning_id": ticket["warning_id"], "status": status})
 
 
-async def approve(warning_id: str, admin_id: str, edited_body_vi: str | None) -> dict:
-    """POST /warnings/{id}/approve (bất đồng bộ) → POLL đến khi dispatching → trả {dispatched}."""
-    await _post(f"/warnings/{warning_id}/approve", {
+async def submit_approve(warning_id: str, admin_id: str, edited_body_vi: str | None) -> dict:
+    """POST /warnings/{id}/approve — TRẢ NGAY {warning_id, status} (KHÔNG poll).
+
+    FE poll `GET /alerts/scan/{warning_id}` để xem tiến trình gửi (dispatching → done + dispatched).
+    """
+    res = await _post(f"/warnings/{warning_id}/approve", {
         "admin_id": admin_id, "edited_body_vi": edited_body_vi,
     })
-    final = await _poll(warning_id, _TERMINAL_RESUME)
-    info = (final.get("resume") or {}).get("info") or {}
-    return {"status": final.get("status"), "dispatched": info.get("dispatched")}
+    return {"warning_id": warning_id, "status": res.get("status", "approving")}
 
 
-async def reject(warning_id: str, admin_id: str, note: str | None) -> dict:
-    """POST /warnings/{id}/reject (bất đồng bộ) → POLL đến khi rejected."""
-    await _post(f"/warnings/{warning_id}/reject", {"admin_id": admin_id, "note": note})
-    final = await _poll(warning_id, _TERMINAL_RESUME)
-    return {"status": final.get("status")}
+async def submit_reject(warning_id: str, admin_id: str, note: str | None) -> dict:
+    """POST /warnings/{id}/reject — TRẢ NGAY {warning_id, status} (KHÔNG poll)."""
+    res = await _post(f"/warnings/{warning_id}/reject", {"admin_id": admin_id, "note": note})
+    return {"warning_id": warning_id, "status": res.get("status", "rejecting")}

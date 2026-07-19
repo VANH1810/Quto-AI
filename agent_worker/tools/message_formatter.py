@@ -81,6 +81,8 @@ def alert_suffix(shelter: dict | None, source: str = "", date: str = "", lang: s
             out += f'\n🧭 <a href="{url}">Chỉ đường Google Maps</a>'
     if source:
         out += _source_line({"provenance": {"source": source, "observed_at": date}})
+    elif date:
+        out += f"\n🗓️ Ngày {date}"
     return out
 
 

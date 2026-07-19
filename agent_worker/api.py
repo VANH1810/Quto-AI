@@ -17,7 +17,7 @@ import re
 import subprocess
 import tempfile
 import uuid
-from datetime import date
+from datetime import datetime, timedelta, timezone
 
 from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Query
@@ -196,8 +196,8 @@ async def _build_demo_alert(commune_code: str, hazard: str, level: int, lang: st
             shelter["distance_text"] = route.get("distance_text")
             shelter["duration_text"] = route.get("duration_text")
 
-    d = date.today()
-    date_txt = f"{d.day:02d}/{d.month:02d}"
+    d = datetime.now(timezone.utc) + timedelta(hours=7)   # giờ Việt Nam (UTC+7)
+    date_txt = d.strftime("%d/%m/%Y %H:%M")
     rm = risk_meta(level)
     settings = get_worker_settings()
     forecast = weather._mock_danger(commune, 3, settings.mock_precip_mm).model_dump() if commune else {}
@@ -213,7 +213,7 @@ async def _build_demo_alert(commune_code: str, hazard: str, level: int, lang: st
     try:  # LLM format
         event.recommended_actions = await llm.generate_actions(event, commune_dict, forecast)
         b = (await llm.generate_bulletins(event, [lang_enum]))[0]
-        body = b.body + message_formatter.alert_suffix(shelter, "", "", lang)  # bỏ dòng nguồn
+        body = b.body + message_formatter.alert_suffix(shelter, "", date_txt, lang)  # ngày, không nguồn
         return b.title, body
     except Exception as e:  # noqa: BLE001 — fallback KB template
         logging.getLogger("agent_worker.api").warning("demo LLM format lỗi, fallback KB: %s", e)
@@ -222,7 +222,7 @@ async def _build_demo_alert(commune_code: str, hazard: str, level: int, lang: st
         situation = (f"Mưa lớn kéo dài, nguy cơ {hz} rất cao. "
                      "Khẩn trương sơ tán người và tài sản đến nơi an toàn.")
         return message_formatter.render_alert(commune_name, hazard, level, situation, actions,
-                                              shelter, source="", date="", lang=lang)
+                                              shelter, source="", date=date_txt, lang=lang)
 
 
 class DemoTelegramIn(BaseModel):
