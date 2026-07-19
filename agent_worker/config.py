@@ -70,6 +70,21 @@ class WorkerSettings(BaseSettings):
         """Broker Celery hiệu dụng: CELERY_BROKER_URL nếu đặt, ngược lại dùng Redis."""
         return self.celery_broker_url or self.redis_url
 
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        """Chuẩn hoá DATABASE_URL về dạng asyncpg cho SQLAlchemy.
+
+        Railway/Render/Supabase cấp `postgres://` hoặc `postgresql://` (đồng bộ). SQLAlchemy
+        async cần `postgresql+asyncpg://`. Bỏ luôn query (?sslmode=...) mà asyncpg không nhận.
+        """
+        url = self.database_url
+        for prefix in ("postgresql+asyncpg://", "postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                if prefix != "postgresql+asyncpg://":
+                    url = "postgresql+asyncpg://" + url[len(prefix):]
+                break
+        return url.split("?", 1)[0]
+
 
 @lru_cache
 def get_worker_settings() -> WorkerSettings:

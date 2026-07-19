@@ -36,7 +36,7 @@ def _sessionmaker() -> async_sessionmaker[AsyncSession]:
     sm = getattr(_local, "sm", None)
     if sm is None:
         eng = create_async_engine(
-            get_worker_settings().database_url,
+            get_worker_settings().sqlalchemy_database_url,
             pool_size=5, max_overflow=5, pool_pre_ping=True,
         )
         _local.engine = eng
