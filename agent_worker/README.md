@@ -246,25 +246,3 @@ cp .env.example .env
 # Edit .env for production settings
 docker compose -f docker-compose.prod.yml up -d
 ```
-
-## 8. Completed vs. Mock vs. Unimplemented
-
-| Feature | Status | Details |
-|---------|--------|---------|
-| Celery task queue | ✅ Complete | RabbitMQ broker, Redis result backend, 2 queues |
-| LangGraph agent graph | ✅ Complete | Tool-calling agent with 10 tools |
-| Risk engine tool | ✅ Complete | Deterministic QĐ18 rule evaluation |
-| Weather tool | ✅ Complete | Open-Meteo forecast integration |
-| Telegram dispatch | ✅ Complete | Real Telegram Bot API (via `python-telegram-bot`) |
-| Telegram opt-in | ✅ Complete | Link token generation, chat_id sync |
-| LLM bulletin composition | ✅ Complete | FPT Cloud / OpenAI API |
-| Geo tool | ✅ Complete | 45 commune definitions |
-| Shelter tool | ✅ Complete | Haversine nearest-shelter |
-| Human-in-the-loop | ✅ Complete | Pending → approve/reject flow |
-| Job polling | ✅ Complete | PROGRESS state with node info |
-| Retry & fallback | ✅ Complete | 3 retries with 5s countdown |
-| Dispatch trace spans | ✅ Complete | PostgreSQL span storage |
-| Loudspeaker delivery | ⚠️ Mock | Returns mock status (no real IP speaker) |
-| TTS (text-to-speech) | ⚠️ Mock | Returns placeholder audio metadata |
-| SMS delivery | ❌ Not implemented | Channel exists but not wired |
-| Zalo ZNS delivery | ❌ Not implemented | Requires Zalo OA API credentials |
